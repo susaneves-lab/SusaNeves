@@ -1,0 +1,6 @@
+{
+  "name": "RadForm - Gestão e Contabilização de Formação Hospitalar",
+  "description": "Sistema integrado de contabilização de formação contínua, arquivo de certificados, monitorização de metas anuais e radar de eventos para serviços hospitalares.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

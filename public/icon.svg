@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="128" fill="#0f766e"/>
+  <circle cx="256" cy="256" r="180" stroke="#5eead4" stroke-width="12" stroke-dasharray="24 16" opacity="0.4"/>
+  <!-- Hospital Cross -->
+  <path d="M216 128h80v88h88v80h-88v88h-80v-88h-88v-80h88z" fill="#ffffff" rx="16"/>
+  <!-- Central Pulse / Orbit Symbol -->
+  <circle cx="256" cy="256" r="32" fill="#0f766e"/>
+  <circle cx="256" cy="256" r="16" fill="#f59e0b"/>
+</svg>
