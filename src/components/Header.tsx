@@ -11,7 +11,8 @@ import {
   CalendarCheck,
   Cloud,
   WifiOff,
-  RefreshCw
+  RefreshCw,
+  LogOut
 } from 'lucide-react';
 import { CertificacaoObrigatoria } from '../types';
 
@@ -30,6 +31,7 @@ interface HeaderProps {
   isOnline?: boolean;
   onTriggerCloudSync?: () => void;
   isCloudSyncing?: boolean;
+  onLogoff?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -46,7 +48,8 @@ export const Header: React.FC<HeaderProps> = ({
   totalAlertas = 0,
   isOnline = true,
   onTriggerCloudSync,
-  isCloudSyncing = false
+  isCloudSyncing = false,
+  onLogoff
 }) => {
 
   return (
@@ -276,6 +279,19 @@ export const Header: React.FC<HeaderProps> = ({
               <CalendarSync className="w-3.5 h-3.5 text-slate-600" />
               <span>Novo Ciclo Anual</span>
             </button>
+
+            {/* Botão de Terminar Sessão / Sair */}
+            {onLogoff && (
+              <button
+                type="button"
+                onClick={onLogoff}
+                title="Terminar Sessão e Bloquear Sistema (Sair)"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 border border-rose-200 rounded-md transition-colors cursor-pointer shadow-2xs"
+              >
+                <LogOut className="w-3.5 h-3.5 text-rose-600" />
+                <span className="hidden sm:inline">Sair</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -304,7 +320,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={() => onSelectTab('dashboard')}
           className={`whitespace-nowrap py-1 ${currentTab === 'dashboard' ? 'text-teal-700 font-bold border-b-2 border-teal-600' : 'text-slate-600'}`}
         >
-          Análise de dados
+          Análise de Dados
         </button>
         <button
           onClick={() => onSelectTab('relatorios')}

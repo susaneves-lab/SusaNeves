@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Formacao, 
   Colaborador, 
@@ -31,6 +31,8 @@ interface BureaucracyMatrixViewProps {
   configuracoes?: ConfiguracoesApp;
   onAtualizarFormacao: (formacao: Formacao) => void;
   onAbrirEmailOutlook: (formacao: Formacao) => void;
+  selectedFormacaoId?: string | null;
+  onSelectFormacao?: (id: string | null) => void;
 }
 
 // Acrónimos e significado oficial dos documentos
@@ -57,11 +59,22 @@ export const BureaucracyMatrixView: React.FC<BureaucracyMatrixViewProps> = ({
   configuracoes,
   onAtualizarFormacao,
   onAbrirEmailOutlook,
+  selectedFormacaoId,
+  onSelectFormacao,
 }) => {
   const [subtipoSelecionado, setSubtipoSelecionado] = useState<SubtipoBurocracia | 'todos'>('todos');
   const [buscaFormacao, setBuscaFormacao] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<'todos' | 'validadas' | 'pendentes'>('todos');
-  const [formacaoSelecionadaId, setFormacaoSelecionadaId] = useState<string | null>(null);
+  const [formacaoSelecionadaId, setFormacaoSelecionadaId] = useState<string | null>(selectedFormacaoId || null);
+
+  useEffect(() => {
+    if (selectedFormacaoId) {
+      setFormacaoSelecionadaId(selectedFormacaoId);
+      setSubtipoSelecionado('todos');
+      setFiltroEstado('todos');
+      setBuscaFormacao('');
+    }
+  }, [selectedFormacaoId]);
 
   // Formações do ano corrente (protegido contra valores nulos)
   const formacoesDoAno = formacoes.filter(f => f.ano === anoAtual);
@@ -235,9 +248,9 @@ export const BureaucracyMatrixView: React.FC<BureaucracyMatrixViewProps> = ({
             </div>
             <button
               onClick={() => window.print()}
-              className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md cursor-pointer transition-colors flex items-center gap-1.5 shadow-2xs"
+              className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md cursor-pointer transition-colors flex items-center gap-1.5 shadow-2xs"
             >
-              <Printer className="w-3.5 h-3.5" />
+              <Printer className="w-3.5 h-3.5 text-slate-600" />
               <span>Imprimir Matriz</span>
             </button>
           </div>

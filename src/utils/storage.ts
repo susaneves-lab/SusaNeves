@@ -57,7 +57,11 @@ export const getStoredFormacoes = (): Formacao[] => {
     const raw = localStorage.getItem(STORAGE_KEYS.FORMACOES);
     if (!raw) return SEED_FORMACOES_2026;
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : SEED_FORMACOES_2026;
+    if (!Array.isArray(parsed) || parsed.length === 0) return SEED_FORMACOES_2026;
+    return parsed.map((f: Formacao) => ({
+      ...f,
+      destinatarios: (f.destinatarios || []).map((d: any) => d === 'AO' ? 'TAS' : d)
+    }));
   } catch (err) {
     console.error('Error loading formacoes:', err);
     return SEED_FORMACOES_2026;
@@ -76,7 +80,11 @@ export const getStoredColaboradores = (): Colaborador[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.COLABORADORES);
     if (!raw) return INITIAL_COLABORADORES;
-    return JSON.parse(raw);
+    const parsed: Colaborador[] = JSON.parse(raw);
+    return parsed.map(c => ({
+      ...c,
+      categoriaProfissional: (c.categoriaProfissional as any) === 'AO' ? 'TAS' : c.categoriaProfissional
+    }));
   } catch {
     return INITIAL_COLABORADORES;
   }
@@ -177,7 +185,11 @@ export const getStoredTarefasQualidade = (ano: number): TarefaQualidade[] => {
     const raw = localStorage.getItem(`${STORAGE_KEYS.TAREFAS}_${ano}`);
     if (!raw) return gerarTarefasPadraoAno(ano);
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : gerarTarefasPadraoAno(ano);
+    if (!Array.isArray(parsed) || parsed.length === 0) return gerarTarefasPadraoAno(ano);
+    return (parsed as TarefaQualidade[]).map(t => ({
+      ...t,
+      descricao: t.descricao ? t.descricao.replace(/\be AO\b/g, 'e TAS').replace(/\bAO\b/g, 'TAS') : t.descricao
+    }));
   } catch (err) {
     console.error('Erro ao ler tarefas da qualidade:', err);
     return gerarTarefasPadraoAno(ano);

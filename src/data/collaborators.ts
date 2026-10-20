@@ -1,13 +1,13 @@
 import { Colaborador, CertificacaoObrigatoria } from '../types';
 
 export const INITIAL_COLABORADORES: Colaborador[] = [
-  // Técnicos Auxiliares de Saúde (TAS / AO)
+  // Técnicos Auxiliares de Saúde (TAS)
   {
     id: 'col-1',
     nome: 'Bárbara Micaela Ortega Macedo',
     sigla: 'BOM',
     numMecanografico: '34532',
-    categoriaProfissional: 'AO',
+    categoriaProfissional: 'TAS',
     cargo: 'Técnica Auxiliar de Saúde',
     email: 'barbaraomacedo@ulsar.min-saude.pt',
     estadoProfissional: 'Activo',
@@ -20,7 +20,7 @@ export const INITIAL_COLABORADORES: Colaborador[] = [
     nome: 'Carla Maria Ribeiro Rosário Pinto',
     sigla: 'CRP',
     numMecanografico: '30716',
-    categoriaProfissional: 'AO',
+    categoriaProfissional: 'TAS',
     cargo: 'Técnica Auxiliar de Saúde',
     email: 'carlarpinto@ulsar.min-saude.pt',
     estadoProfissional: 'Activo',
@@ -33,7 +33,7 @@ export const INITIAL_COLABORADORES: Colaborador[] = [
     nome: 'Filipa Alexandra Gonçalves Ferrão',
     sigla: 'FGF',
     numMecanografico: '34182',
-    categoriaProfissional: 'AO',
+    categoriaProfissional: 'TAS',
     cargo: 'Técnica Auxiliar de Saúde',
     email: 'filipagferrao@ulsar.min-saude.pt',
     estadoProfissional: 'Activo',
@@ -46,7 +46,7 @@ export const INITIAL_COLABORADORES: Colaborador[] = [
     nome: 'Maria Amélia Plácido Martins',
     sigla: 'MAM',
     numMecanografico: '33000',
-    categoriaProfissional: 'AO',
+    categoriaProfissional: 'TAS',
     cargo: 'Técnica Auxiliar de Saúde',
     email: 'mariaapmartins@ulsar.min-saude.pt',
     estadoProfissional: 'Activo',
@@ -59,7 +59,7 @@ export const INITIAL_COLABORADORES: Colaborador[] = [
     nome: 'Maria de Lurdes Marcelino Monteiro Soares',
     sigla: 'LMS',
     numMecanografico: '32084',
-    categoriaProfissional: 'AO',
+    categoriaProfissional: 'TAS',
     cargo: 'Técnica Auxiliar de Saúde',
     email: 'mariamsoares@ulsar.min-saude.pt',
     estadoProfissional: 'Activo',
@@ -605,7 +605,7 @@ export const INITIAL_CERTIFICACOES: CertificacaoObrigatoria[] = [
     id: 'cert-6',
     colaboradorSigla: 'LMS',
     colaboradorNome: 'Maria de Lurdes Marcelino Monteiro Soares',
-    categoriaProfissional: 'AO',
+    categoriaProfissional: 'TAS',
     nomeCertificacao: 'Boas Práticas e Higienização em Oncologia',
     dataObtencao: '2023-09-01',
     dataExpiracao: '2026-09-01',

@@ -33,7 +33,8 @@ import {
   Sparkles,
   Paperclip,
   AlertCircle,
-  Briefcase
+  Briefcase,
+  Printer
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -105,7 +106,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const cores: Record<FormacaoCategoria, { bg: string; text: string; fill: string }> = {
       Externa: { bg: 'bg-blue-100', text: 'text-blue-800', fill: '#0284c7' },
       Interna: { bg: 'bg-teal-100', text: 'text-teal-800', fill: '#0d9488' },
-      Enfermagem: { bg: 'bg-emerald-100', text: 'text-emerald-800', fill: '#10b981' },
+      Enfermagem: { bg: 'bg-purple-100', text: 'text-purple-800', fill: '#8b5cf6' },
       ACAF: { bg: 'bg-amber-100', text: 'text-amber-800', fill: '#f59e0b' }
     };
 
@@ -155,12 +156,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return { mapa, maxHoras };
   }, [formacoesDoAno]);
 
-  // Métricas por Grupo de Colaboradores (TSDT, ENF, MR, FIS, AT, AO)
+  // Métricas por Grupo de Colaboradores (TSDT, ENF, MR, FIS, AT, TAS) com sufixo feminino (a)
   const metricasGrupos = useMemo(() => {
-    const grupos: DestinatarioGrupo[] = ['TSDT', 'ENF', 'MR', 'FIS', 'AT', 'AO'];
+    const grupos: DestinatarioGrupo[] = ['TSDT', 'ENF', 'MR', 'FIS', 'AT', 'TAS'];
+    
+    // Nomes com o sufixo feminino de (a) / (as) em todas as categorias (Requisito 5)
+    const nomesComSufixoFeminino: Record<string, string> = {
+      TSDT: 'Técnicos(as) Superiores de Diagnóstico e Terapêutica (TSDT)',
+      ENF: 'Enfermeiros(as)',
+      MR: 'Médicos(as) Radioncologistas',
+      FIS: 'Físicos(as) Médicos(as)',
+      AT: 'Assistentes Técnicos(as)',
+      TAS: 'Técnicos(as) Auxiliares de Saúde (TAS)',
+      AO: 'Técnicos(as) Auxiliares de Saúde (TAS)'
+    };
+
     return grupos.map(grp => {
-      const colabs = colaboradores.filter(c => c.categoriaProfissional === grp);
-      const acoesDestinadas = formacoesDoAno.filter(f => f.destinatarios.includes(grp));
+      const colabs = colaboradores.filter(c => c.categoriaProfissional === grp || (grp === 'TAS' && c.categoriaProfissional === 'AO'));
+      const acoesDestinadas = formacoesDoAno.filter(f => f.destinatarios.includes(grp) || (grp === 'TAS' && f.destinatarios.includes('AO' as any)));
       
       const horasAcumuladas = colabs.reduce((acc, c) => {
         const horasC = formacoesDoAno
@@ -173,7 +186,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       return {
         grupo: grp,
-        nome: DESTINATARIOS_INFO[grp]?.nomeCompleto || grp,
+        nome: nomesComSufixoFeminino[grp] || DESTINATARIOS_INFO[grp]?.nomeCompleto || grp,
         totalColabs: colabs.length,
         acoesDestinadas: acoesDestinadas.length,
         horasAcumuladas,
@@ -186,7 +199,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const evolucaoColaboradores = useMemo(() => {
     return colaboradores
       .filter(c => {
-        if (filtroGrupo !== 'todos' && c.categoriaProfissional !== filtroGrupo) return false;
+        if (filtroGrupo !== 'todos') {
+          const match = c.categoriaProfissional === filtroGrupo || (filtroGrupo === 'TAS' && c.categoriaProfissional === 'AO');
+          if (!match) return false;
+        }
         if (buscaColaborador.trim() !== '') {
           const q = buscaColaborador.toLowerCase();
           return c.nome.toLowerCase().includes(q) || c.sigla.toLowerCase().includes(q) || c.cargo.toLowerCase().includes(q);
@@ -220,24 +236,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       });
   }, [colaboradores, formacoesDoAno, filtroGrupo, buscaColaborador, metaAtual, ordenacaoColabs]);
 
+  // Lista de colaboradores filtrada para o seletor do Perfil Individual (ordenada alfabeticamente pela Sigla - Requisito 2)
+  const colaboradoresFiltradosPerfil = useMemo(() => {
+    return colaboradores
+      .filter(c => {
+        if (filtroGrupoPerfil !== 'todos') {
+          const match = c.categoriaProfissional === filtroGrupoPerfil || (filtroGrupoPerfil === 'TAS' && c.categoriaProfissional === 'AO');
+          if (!match) return false;
+        }
+        if (buscaPerfil.trim() !== '') {
+          const q = buscaPerfil.toLowerCase();
+          return c.nome.toLowerCase().includes(q) || c.sigla.toLowerCase().includes(q);
+        }
+        return true;
+      })
+      .sort((a, b) => a.sigla.localeCompare(b.sigla, 'pt', { sensitivity: 'base' }));
+  }, [colaboradores, filtroGrupoPerfil, buscaPerfil]);
+
   // Colaborador ativo no Perfil Individual
   const colaboradorSelecionado = useMemo(() => {
-    return colaboradores.find(c => c.id === colaboradorSelecionadoId) || colaboradores[0] || null;
-  }, [colaboradores, colaboradorSelecionadoId]);
-
-  // Lista de colaboradores filtrada para o seletor do Perfil Individual
-  const colaboradoresFiltradosPerfil = useMemo(() => {
-    return colaboradores.filter(c => {
-      if (filtroGrupoPerfil !== 'todos' && c.categoriaProfissional !== filtroGrupoPerfil) {
-        return false;
-      }
-      if (buscaPerfil.trim() !== '') {
-        const q = buscaPerfil.toLowerCase();
-        return c.nome.toLowerCase().includes(q) || c.sigla.toLowerCase().includes(q);
-      }
-      return true;
-    });
-  }, [colaboradores, filtroGrupoPerfil, buscaPerfil]);
+    const encontrado = colaboradoresFiltradosPerfil.find(c => c.id === colaboradorSelecionadoId);
+    if (encontrado) return encontrado;
+    return colaboradoresFiltradosPerfil[0] || colaboradores.find(c => c.id === colaboradorSelecionadoId) || colaboradores[0] || null;
+  }, [colaboradores, colaboradoresFiltradosPerfil, colaboradorSelecionadoId]);
 
   // Formações do colaborador selecionado no ano corrente
   const formacoesDoColaborador = useMemo(() => {
@@ -382,7 +403,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     <div className="space-y-6">
       
       {/* SELETOR DE ABA DA DASHBOARD: VISÃO GERAL VS PERFIL INDIVIDUAL */}
-      <div className="bg-white p-1.5 rounded-lg border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-2">
+      <div className="no-print bg-white p-1.5 rounded-lg border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <button
             type="button"
@@ -872,12 +893,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               className="text-xs py-1 px-2 bg-slate-50 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
             >
               <option value="todos">Todos os Grupos</option>
-              <option value="TSDT">TSDT</option>
-              <option value="ENF">Enfermagem</option>
-              <option value="MR">Médicos Rad.</option>
-              <option value="FIS">Física Médica</option>
               <option value="AT">Assistentes Técnicos</option>
-              <option value="AO">Assistentes Operacionais</option>
+              <option value="ENF">Enfermagem</option>
+              <option value="FIS">Física Médica</option>
+              <option value="MR">Médicos Rad.</option>
+              <option value="TAS">Técnicos Auxiliares de Saúde</option>
+              <option value="TSDT">TSDT</option>
             </select>
 
             {/* Ordenação Alfabética / Horas */}
@@ -1016,8 +1037,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   {abaDashboard === 'individual' && (
     <div className="space-y-6 animate-in fade-in duration-200">
       
+      {/* Cabeçalho de Impressão Oficial do Perfil Individual */}
+      <div className="hidden print:block mb-4 border-b-2 border-teal-700 pb-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-slate-900">Serviço de Radioterapia · ULSAR</h1>
+            <p className="text-xs text-slate-600">Dossiê e Perfil Formativo Individual do Colaborador · Exercício {anoAtual}</p>
+          </div>
+          <div className="text-right text-xs text-slate-500 font-mono">
+            <div>Emitido em: {new Date().toLocaleDateString('pt-PT')}</div>
+            <div className="text-teal-800 font-bold">RadForm Hospitalar</div>
+          </div>
+        </div>
+      </div>
+
       {/* BARRA SUPERIOR DE SELEÇÃO E NAVEGAÇÃO DE COLABORADORES */}
-      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs space-y-3">
+      <div className="no-print bg-white p-4 rounded-lg border border-slate-200 shadow-2xs space-y-3">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -1029,14 +1064,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </p>
           </div>
 
-          {/* Controles de Navegação Anterior / Seguinte */}
-          <div className="flex items-center gap-2">
+          {/* Controles de Navegação Anterior / Seguinte + Botão de Impressão */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Botão de Impressão do Perfil Individual (Requisito 2) */}
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+              title={`Imprimir Perfil Individual de ${colaboradorSelecionado?.nome || 'Colaborador'}`}
+            >
+              <Printer className="w-3.5 h-3.5 text-slate-600" />
+              <span>Imprimir Perfil</span>
+            </button>
+
             <button
               type="button"
               onClick={() => {
-                const idxAtual = colaboradores.findIndex(c => c.id === colaboradorSelecionadoId);
-                const prevIdx = idxAtual <= 0 ? colaboradores.length - 1 : idxAtual - 1;
-                setColaboradorSelecionadoId(colaboradores[prevIdx].id);
+                const lista = colaboradoresFiltradosPerfil.length > 0 ? colaboradoresFiltradosPerfil : colaboradores;
+                const idxAtual = lista.findIndex(c => c.id === (colaboradorSelecionado?.id || colaboradorSelecionadoId));
+                const prevIdx = idxAtual <= 0 ? lista.length - 1 : idxAtual - 1;
+                setColaboradorSelecionadoId(lista[prevIdx].id);
               }}
               className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md border border-slate-300 inline-flex items-center gap-1 transition-colors cursor-pointer"
               title="Colaborador anterior"
@@ -1046,15 +1093,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
 
             <span className="text-xs font-mono font-medium text-slate-600 px-2">
-              {colaboradores.findIndex(c => c.id === colaboradorSelecionadoId) + 1} de {colaboradores.length}
+              {(() => {
+                const lista = colaboradoresFiltradosPerfil.length > 0 ? colaboradoresFiltradosPerfil : colaboradores;
+                const idx = lista.findIndex(c => c.id === (colaboradorSelecionado?.id || colaboradorSelecionadoId));
+                return `${idx >= 0 ? idx + 1 : 1} de ${lista.length}`;
+              })()}
             </span>
 
             <button
               type="button"
               onClick={() => {
-                const idxAtual = colaboradores.findIndex(c => c.id === colaboradorSelecionadoId);
-                const nextIdx = idxAtual >= colaboradores.length - 1 ? 0 : idxAtual + 1;
-                setColaboradorSelecionadoId(colaboradores[nextIdx].id);
+                const lista = colaboradoresFiltradosPerfil.length > 0 ? colaboradoresFiltradosPerfil : colaboradores;
+                const idxAtual = lista.findIndex(c => c.id === (colaboradorSelecionado?.id || colaboradorSelecionadoId));
+                const nextIdx = idxAtual >= lista.length - 1 ? 0 : idxAtual + 1;
+                setColaboradorSelecionadoId(lista[nextIdx].id);
               }}
               className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md border border-slate-300 inline-flex items-center gap-1 transition-colors cursor-pointer"
               title="Próximo colaborador"
@@ -1068,20 +1120,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Filtros e Dropdown de Seleção */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-2 border-t border-slate-100">
           
-          {/* Filtro por Categoria Profissional */}
+          {/* 1º Filtro: Categoria Profissional em Ordem Alfabética (Requisito 6) */}
           <div className="md:col-span-3">
             <select
               value={filtroGrupoPerfil}
               onChange={(e) => setFiltroGrupoPerfil(e.target.value)}
               className="w-full py-1.5 px-2.5 text-xs bg-slate-50 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500 focus:outline-hidden text-slate-700"
+              title="Filtrar por Grupo Profissional (Ordem Alfabética)"
             >
               <option value="todos">Todos os Grupos Profissionais</option>
-              <option value="TSDT">TSDT</option>
-              <option value="ENF">Enfermagem</option>
-              <option value="MR">Médicos Radioterapeutas</option>
-              <option value="FIS">Física Médica</option>
               <option value="AT">Assistentes Técnicos</option>
-              <option value="AO">Assistentes Operacionais</option>
+              <option value="ENF">Enfermagem</option>
+              <option value="FIS">Física Médica</option>
+              <option value="MR">Médicos Radioncologistas</option>
+              <option value="TAS">Técnicos Auxiliares de Saúde</option>
+              <option value="TSDT">TSDT</option>
             </select>
           </div>
 
@@ -1097,12 +1150,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             />
           </div>
 
-          {/* Seletor Principal de Colaborador */}
+          {/* Seletor Principal de Colaborador (Siglas em Ordem Alfabética - Requisito 2) */}
           <div className="md:col-span-5">
             <select
-              value={colaboradorSelecionadoId}
+              value={colaboradorSelecionado?.id || colaboradorSelecionadoId}
               onChange={(e) => setColaboradorSelecionadoId(e.target.value)}
               className="w-full py-1.5 px-3 text-xs bg-teal-50/70 border border-teal-300 rounded-md font-semibold text-teal-950 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+              title="Selecionar colaborador (Siglas em ordem alfabética)"
             >
               {colaboradoresFiltradosPerfil.map(c => (
                 <option key={c.id} value={c.id}>
@@ -1163,11 +1217,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
 
               {/* Detalhe de Admissão & Ano */}
-              <div className="flex sm:flex-col items-center sm:items-end justify-between text-xs text-slate-500 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
+              <div className="flex sm:flex-col items-center sm:items-end justify-between text-xs text-slate-500 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 gap-1.5">
                 <span className="text-[11px]">Ano Analisado: <strong className="text-slate-900 font-mono">{anoAtual}</strong></span>
                 {colaboradorSelecionado.dataAdmissao && (
                   <span className="text-[11px] text-slate-400">Admissão: {colaboradorSelecionado.dataAdmissao}</span>
                 )}
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="no-print mt-1 px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                  title={`Imprimir Perfil de ${colaboradorSelecionado.nome}`}
+                >
+                  <Printer className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Imprimir</span>
+                </button>
               </div>
             </div>
           </div>
@@ -1385,9 +1448,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   {metricasPerfilIndividual.horasPorCategoria.Interna} h
                 </span>
               </div>
-              <div className="p-2.5 rounded-md bg-emerald-50 border border-emerald-200">
-                <span className="text-[11px] text-emerald-700 font-semibold block">Enfermagem</span>
-                <span className="text-lg font-bold font-mono text-emerald-900 block mt-0.5">
+              <div className="p-2.5 rounded-md bg-purple-50 border border-purple-200">
+                <span className="text-[11px] text-purple-700 font-semibold block">Enfermagem</span>
+                <span className="text-lg font-bold font-mono text-purple-900 block mt-0.5">
                   {metricasPerfilIndividual.horasPorCategoria.Enfermagem} h
                 </span>
               </div>

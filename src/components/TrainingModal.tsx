@@ -20,6 +20,7 @@ import {
   Info
 } from 'lucide-react';
 import { gerarCodigoFormacaoAutomatico } from '../utils/codeGenerator';
+import { extrairDadosECriarFormacaoDeCertificado } from '../utils/certificateParser';
 
 interface TrainingModalProps {
   isOpen: boolean;
@@ -126,12 +127,13 @@ export const TrainingModal: React.FC<TrainingModalProps> = ({
   };
 
   const handleToggleDestinatario = (grupo: DestinatarioGrupo) => {
-    if (destinatarios.includes(grupo)) {
+    const isCurrentlyPresent = destinatarios.includes(grupo) || (grupo === 'TAS' && destinatarios.includes('AO' as any));
+    if (isCurrentlyPresent) {
       if (destinatarios.length > 1) {
-        setDestinatarios(destinatarios.filter(g => g !== grupo));
+        setDestinatarios(destinatarios.filter(g => g !== grupo && !(grupo === 'TAS' && (g as string) === 'AO')));
       }
     } else {
-      setDestinatarios([...destinatarios, grupo]);
+      setDestinatarios([...destinatarios.filter(g => !(grupo === 'TAS' && (g as string) === 'AO')), grupo]);
     }
   };
 
@@ -143,8 +145,8 @@ export const TrainingModal: React.FC<TrainingModalProps> = ({
     }
   };
 
-  // Upload do ficheiro de certificado (converte para base64 para persistência segura)
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Upload do ficheiro de certificado (converte para base64 e auto-preenche dados conhecidos)
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -153,20 +155,31 @@ export const TrainingModal: React.FC<TrainingModalProps> = ({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64Data = reader.result as string;
-      setCertificado({
-        id: `cert-${Date.now()}`,
-        nomeFicheiro: file.name,
-        tamanhoKb: Math.round(file.size / 1024),
-        dataUpload: new Date().toISOString(),
-        conteudoBase64: base64Data,
-        tipoMime: file.type
-      });
+    try {
+      const res = await extrairDadosECriarFormacaoDeCertificado(file, colaboradores, anoAtual);
+      setCertificado(res.certificado);
+
+      // Se for novo registo ou se o título estiver vazio, preencher com os dados extraídos
+      if (!formacaoToEdit || !nome.trim()) {
+        setNome(res.formacao.nome);
+        if (res.formacao.colaboradores.length > 0 && colaboradoresSelecionados.length === 0) {
+          setColaboradoresSelecionados(res.formacao.colaboradores);
+        }
+        if (res.formacao.destinatarios.length > 0) {
+          setDestinatarios(res.formacao.destinatarios);
+        }
+        if (res.formacao.data) {
+          setData(res.formacao.data);
+        }
+        if (res.formacao.horas > 1) {
+          setHoras(res.formacao.horas);
+        }
+        setRealizada(true);
+      }
       setErroValidacao('');
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Erro ao processar certificado:', err);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -295,14 +308,14 @@ export const TrainingModal: React.FC<TrainingModalProps> = ({
               </div>
             </div>
 
-            {/* Destinatários (sub-opções: MR, ENF, TSDT, FIS, AT, AO) */}
+            {/* Destinatários (sub-opções: MR, ENF, TSDT, FIS, AT, TAS) */}
             <div>
               <label className="block text-xs font-semibold text-slate-800 mb-1">
                 Destinatários da Ação (seleção múltipla) <span className="text-rose-500">*</span>
               </label>
               <div className="grid grid-cols-3 gap-1.5">
-                {(['MR', 'ENF', 'TSDT', 'FIS', 'AT', 'AO'] as DestinatarioGrupo[]).map((grp) => {
-                  const isSelected = destinatarios.includes(grp);
+                {(['AT', 'ENF', 'FIS', 'MR', 'TAS', 'TSDT'] as DestinatarioGrupo[]).map((grp) => {
+                  const isSelected = destinatarios.includes(grp) || (grp === 'TAS' && destinatarios.includes('AO' as any));
                   return (
                     <button
                       type="button"

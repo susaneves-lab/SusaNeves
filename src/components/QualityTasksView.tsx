@@ -308,9 +308,9 @@ Unidade Local de Saúde (ULSAR, EPE)`;
             </button>
             <button
               onClick={() => window.print()}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md cursor-pointer transition-colors flex items-center gap-1"
+              className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md cursor-pointer transition-colors flex items-center gap-1.5 shadow-2xs"
             >
-              <Printer className="w-3.5 h-3.5 text-slate-500" />
+              <Printer className="w-3.5 h-3.5 text-slate-600" />
               <span>Imprimir</span>
             </button>
           </div>

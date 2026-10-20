@@ -67,6 +67,7 @@ import {
 export default function App() {
   // Tab ativa (Requisito 11: Aba Notificações no menu principal)
   const [currentTab, setCurrentTab] = useState<'tabela' | 'dashboard' | 'relatorios' | 'burocracia' | 'tarefas' | 'radar' | 'certificacoes' | 'notificacoes'>('tabela');
+  const [formacaoSelecionadaBurocraciaId, setFormacaoSelecionadaBurocraciaId] = useState<string | null>(null);
   
   // Autenticação com palavra-passe
   const [configuracoes, setConfiguracoes] = useState<ConfiguracoesApp>(getStoredConfiguracoes());
@@ -305,6 +306,16 @@ export default function App() {
     showToast('Acesso autorizado ao Serviço de Radioterapia.');
   };
 
+  // Terminar sessão / Logoff (Requisito 1)
+  const handleLogoff = () => {
+    setIsAutenticado(false);
+    sessionStorage.removeItem('radform_autenticado');
+    if (!configuracoes.exigirPassword) {
+      setConfiguracoes(prev => ({ ...prev, exigirPassword: true }));
+    }
+    showToast('Sessão terminada com sucesso. Introduza a palavra-passe para aceder.');
+  };
+
   // Ordenador cronológico oficial (Mais recente primeiro)
   const ordenarCronologicamente = (lista: Formacao[]): Formacao[] => {
     return [...lista].sort((a, b) => {
@@ -325,6 +336,12 @@ export default function App() {
       showToast('Nova formação registada com sucesso (organizada cronologicamente).');
     }
     setFormacaoToEdit(null);
+  };
+
+  // Criação automática de novo registo a partir do upload de um certificado (Requisito 2)
+  const handleCriarFormacaoDeCertificado = (novaFormacao: Formacao) => {
+    setFormacoes(prev => ordenarCronologicamente([novaFormacao, ...prev]));
+    showToast(`Novo registo criado automaticamente a partir do certificado «${novaFormacao.certificado?.nomeFicheiro || ''}».`);
   };
 
   const handleUpdateFormacaoDireta = (atualizada: Formacao) => {
@@ -535,7 +552,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900">
       
       {/* Modal de Palavra-passe de Entrada Obrigatório */}
-      {configuracoes.exigirPassword && !isAutenticado && (
+      {(!isAutenticado || (configuracoes.exigirPassword && !isAutenticado)) && (
         <LoginModal
           isOpen={true}
           onSuccess={handleLoginSucesso}
@@ -562,6 +579,7 @@ export default function App() {
         isOnline={isOnline}
         onTriggerCloudSync={handleTriggerCloudSync}
         isCloudSyncing={isCloudSyncing}
+        onLogoff={handleLogoff}
       />
 
       {/* Main Content Area */}
@@ -590,6 +608,15 @@ export default function App() {
             onOpenImportRealizadas={() => setIsImportRealizadasOpen(true)}
             onOpenConfigurarExcel={() => setIsExcelExportOpen(true)}
             onAbrirEmailOutlook={handleAbrirEmailOutlook}
+            onCriarFormacaoDeCertificado={handleCriarFormacaoDeCertificado}
+            onNavigateToBurocracia={(formacaoId) => {
+              const formacaoAlvo = formacoes.find(f => f.id === formacaoId);
+              if (formacaoAlvo?.ano && formacaoAlvo.ano !== anoAtual) {
+                setAnoAtual(formacaoAlvo.ano);
+              }
+              setFormacaoSelecionadaBurocraciaId(formacaoId);
+              setCurrentTab('burocracia');
+            }}
           />
         )}
 
@@ -613,6 +640,8 @@ export default function App() {
             configuracoes={configuracoes}
             onAtualizarFormacao={handleUpdateFormacaoDireta}
             onAbrirEmailOutlook={handleAbrirEmailOutlook}
+            selectedFormacaoId={formacaoSelecionadaBurocraciaId}
+            onSelectFormacao={setFormacaoSelecionadaBurocraciaId}
           />
         )}
 

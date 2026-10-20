@@ -145,7 +145,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [metasHorasPorCat, setMetasHorasPorCat] = useState<Record<DestinatarioGrupo, number>>({
     TSDT: configuracoes.metasPorCategoria?.TSDT ?? 35,
     FIS: configuracoes.metasPorCategoria?.FIS ?? 40,
-    AO: configuracoes.metasPorCategoria?.AO ?? 30,
+    TAS: configuracoes.metasPorCategoria?.TAS ?? configuracoes.metasPorCategoria?.AO ?? 30,
+    AO: configuracoes.metasPorCategoria?.AO ?? configuracoes.metasPorCategoria?.TAS ?? 30,
     AT: configuracoes.metasPorCategoria?.AT ?? 35,
     MR: configuracoes.metasPorCategoria?.MR ?? 35,
     ENF: configuracoes.metasPorCategoria?.ENF ?? 35,
@@ -161,7 +162,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [metasQtdPorCat, setMetasQtdPorCat] = useState<Record<DestinatarioGrupo, number>>({
     TSDT: configuracoes.metasQtdPorCategoria?.TSDT ?? 3,
     FIS: configuracoes.metasQtdPorCategoria?.FIS ?? 4,
-    AO: configuracoes.metasQtdPorCategoria?.AO ?? 2,
+    TAS: configuracoes.metasQtdPorCategoria?.TAS ?? configuracoes.metasQtdPorCategoria?.AO ?? 2,
+    AO: configuracoes.metasQtdPorCategoria?.AO ?? configuracoes.metasQtdPorCategoria?.TAS ?? 2,
     AT: configuracoes.metasQtdPorCategoria?.AT ?? 2,
     MR: configuracoes.metasQtdPorCategoria?.MR ?? 3,
     ENF: configuracoes.metasQtdPorCategoria?.ENF ?? 3,
@@ -896,12 +898,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     Metas de Horas Específicas por Categoria Profissional:
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {(['TSDT', 'FIS', 'ENF', 'MR', 'AT', 'AO'] as DestinatarioGrupo[]).map((cat) => (
+                    {(['TSDT', 'FIS', 'ENF', 'MR', 'AT', 'TAS'] as DestinatarioGrupo[]).map((cat) => (
                       <div key={cat} className="p-2.5 bg-white rounded-md border border-slate-200 flex items-center justify-between">
                         <div>
                           <strong className="text-slate-900 block font-semibold">{cat}</strong>
                           <span className="text-[10px] text-slate-500">
-                            {cat === 'TSDT' ? 'Radioterapia' : cat === 'FIS' ? 'Física Médica' : cat === 'ENF' ? 'Enfermagem' : cat === 'MR' ? 'Médicos Rad.' : cat === 'AT' ? 'Secretariado' : 'Operacionais'}
+                            {cat === 'TSDT' ? 'Radioterapia' : cat === 'FIS' ? 'Física Médica' : cat === 'ENF' ? 'Enfermagem' : cat === 'MR' ? 'Médicos Rad.' : cat === 'AT' ? 'Secretariado' : 'Técnicos Aux. Saúde'}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -1000,7 +1002,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     Meta de Ações de Formação por Categoria Profissional:
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {(['TSDT', 'FIS', 'ENF', 'MR', 'AT', 'AO'] as DestinatarioGrupo[]).map((cat) => (
+                    {(['TSDT', 'FIS', 'ENF', 'MR', 'AT', 'TAS'] as DestinatarioGrupo[]).map((cat) => (
                       <div key={cat} className="p-2.5 bg-white rounded-md border border-teal-200 flex items-center justify-between">
                         <div>
                           <strong className="text-slate-900 block font-semibold">{cat}</strong>
@@ -1074,7 +1076,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <option value="MR">Médicos (MR)</option>
                     <option value="FIS">Física Médica (FIS)</option>
                     <option value="AT">Assistentes Técnicos (AT)</option>
-                    <option value="AO">TAS / Assistentes Operacionais (AO)</option>
+                    <option value="TAS">Técnicos Auxiliares de Saúde (TAS)</option>
                   </select>
                 </div>
 
@@ -2553,7 +2555,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <option value="MR">MR (Médico Radioncologista)</option>
                       <option value="FIS">FIS (Física Médica)</option>
                       <option value="AT">AT (Assistente Técnico)</option>
-                      <option value="AO">AO / TAS (Téc. Auxiliar Saúde)</option>
+                      <option value="TAS">TAS (Técnico Auxiliar de Saúde)</option>
                     </select>
                   </div>
 

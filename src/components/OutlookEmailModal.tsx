@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Formacao, Colaborador, DESTINATARIOS_INFO } from '../types';
 import { 
   Mail, 
@@ -39,24 +39,23 @@ export const OutlookEmailModal: React.FC<OutlookEmailModalProps> = ({
   );
   const [emailCc, setEmailCc] = useState('chefia.radioterapia@ulsar.min-saude.pt; coordenacao.qualidade@ulsar.min-saude.pt');
 
-  // Assunto formal do Outlook
+  // Assunto formal do Outlook sem qualquer código da formação
   const [assunto, setAssunto] = useState(
-    `[RadForm · ULSAR] Avaliação da Eficácia aos 6 Meses · Formação: ${formacao?.nome || ''} (${formacao?.codigo || 'RAD'})`
+    `[RadForm · ULSAR] Avaliação da Eficácia aos 6 Meses · Formação: ${formacao?.nome || ''}`
   );
 
-  // Corpo profissional do email
-  const corpoPadrao = `Exmo(a). Colaborador(a),
+  // Função para gerar o corpo profissional do email sem qualquer código de formação (Requisito 4)
+  const gerarCorpoSemCodigo = (f: Formacao | null, partics: Colaborador[]) => `Exmo(a). Colaborador(a),
 
 No âmbito do Sistema de Gestão da Qualidade e Avaliação Contínua do Serviço de Radioterapia da Unidade Local de Saúde (ULSAR, EPE), solicitamos o preenchimento da Avaliação da Eficácia decorridos 6 meses após a realização da seguinte ação formativa:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 DADOS DA FORMAÇÃO REALIZADA:
-• Ação Formativa: ${formacao?.nome || ''}
-• Código da Formação: ${formacao?.codigo || 'N/A'}
-• Categoria / Âmbito: ${formacao?.categoria || ''}
-• Data de Realização: ${formacao?.data || ''}${formacao?.dataFim ? ` a ${formacao.dataFim}` : ''}
-• Carga Horária: ${formacao?.horas || 0} Horas
-• Participante(s): ${participantes.map(p => `${p.nome} (${p.sigla} - ${p.categoriaProfissional})`).join(', ') || (formacao?.colaboradores || []).join(', ') || 'Colaboradores do Serviço'}
+• Ação Formativa: ${f?.nome || ''}
+• Categoria / Âmbito: ${f?.categoria || ''}
+• Data de Realização: ${f?.data || ''}${f?.dataFim ? ` a ${f.dataFim}` : ''}
+• Carga Horária: ${f?.horas || 0} Horas
+• Participante(s): ${partics.length > 0 ? partics.map(p => `${p.nome} (${DESTINATARIOS_INFO[p.categoriaProfissional]?.nomeCompleto || p.categoriaProfissional})`).join(', ') : 'Colaboradores Participantes do Serviço'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 OBJETIVO DA AVALIAÇÃO DE EFICÁCIA (6 MESES):
@@ -70,8 +69,21 @@ Coordenação de Formação Contínua e Qualidade
 Serviço de Radioterapia · ULSAR, EPE
 Email: radioterapia.formacao@ulsar.min-saude.pt`;
 
-  const [corpoEmail, setCorpoEmail] = useState(corpoPadrao);
+  const [corpoEmail, setCorpoEmail] = useState(() => gerarCorpoSemCodigo(formacao, participantes));
   const [copiado, setCopiado] = useState(false);
+
+  // Sincronizar dados sempre que uma nova formação for aberta no modal
+  useEffect(() => {
+    if (formacao) {
+      const partics = colaboradores.filter(c => formacao.colaboradores?.includes(c.sigla));
+      const emails = partics.map(p => p.email).filter(Boolean);
+      setDestinatarioPrincipal(
+        emails.length > 0 ? emails.join('; ') : 'formacao.radioterapia@ulsar.min-saude.pt'
+      );
+      setAssunto(`[RadForm · ULSAR] Avaliação da Eficácia aos 6 Meses · Formação: ${formacao.nome}`);
+      setCorpoEmail(gerarCorpoSemCodigo(formacao, partics));
+    }
+  }, [formacao, colaboradores]);
 
   if (!isOpen || !formacao) return null;
 
@@ -129,7 +141,7 @@ Email: radioterapia.formacao@ulsar.min-saude.pt`;
               <span className="text-[11px] font-bold uppercase text-slate-400">Ação Formativa</span>
               <h4 className="font-bold text-slate-900 text-sm">{formacao.nome}</h4>
               <p className="text-xs text-slate-500 mt-0.5">
-                Código: <strong className="font-mono text-teal-800">{formacao.codigo}</strong> · Categoria: {formacao.categoria} · Carga: {formacao.horas}h
+                Categoria: {formacao.categoria} · Carga: {formacao.horas}h
               </p>
             </div>
             <div className="text-right sm:border-l sm:border-slate-200 sm:pl-4">

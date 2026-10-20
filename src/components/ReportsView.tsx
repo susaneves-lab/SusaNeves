@@ -23,7 +23,9 @@ import {
   Sparkles,
   TrendingUp,
   ShieldCheck,
-  Building2
+  Building2,
+  PieChart as PieChartIcon,
+  Target
 } from 'lucide-react';
 import { exportRelatorioMensalToExcel, exportRelatorioTrimestralToExcel, exportFormacoesToExcel } from '../utils/exportUtils';
 import { MonthlyEvolutionBarChart } from './MonthlyEvolutionBarChart';
@@ -42,7 +44,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   anoAtual,
   metaAtual
 }) => {
-  const [tipoRelatorio, setTipoRelatorio] = useState<'desempenho' | 'mensal' | 'trimestral' | 'anual'>('desempenho');
+  const [tipoRelatorio, setTipoRelatorio] = useState<'desempenho' | 'mensal' | 'trimestral' | 'anual' | 'acumulativo'>('desempenho');
   const [mesSelecionado, setMesSelecionado] = useState<number>(1); // Janeiro por defeito
   const [trimestreSelecionado, setTrimestreSelecionado] = useState<1 | 2 | 3 | 4>(1); // Q1 por defeito
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
@@ -75,16 +77,16 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     : 0;
 
   // Repartição por Categoria Profissional
-  const grupos: DestinatarioGrupo[] = ['TSDT', 'FIS', 'ENF', 'MR', 'AT', 'AO'];
+  const grupos: DestinatarioGrupo[] = ['TSDT', 'FIS', 'ENF', 'MR', 'AT', 'TAS'];
   const desempenhoCategorias = useMemo(() => {
     return grupos.map(grp => {
-      const colabsGrupo = colaboradores.filter(c => c.categoriaProfissional === grp);
-      const acoesGrupo = formacoesDoAno.filter(f => f.destinatarios.includes(grp));
+      const colabsGrupo = colaboradores.filter(c => c.categoriaProfissional === grp || (grp === 'TAS' && c.categoriaProfissional === 'AO'));
+      const acoesGrupo = formacoesDoAno.filter(f => f.destinatarios.includes(grp) || (grp === 'TAS' && f.destinatarios.includes('AO' as any)));
 
       const horasGrupo = formacoesDoAno.reduce((sum, f) => {
         const temColabDoGrupo = f.colaboradores?.some(sigla => {
           const c = colaboradores.find(col => col.sigla === sigla);
-          return c?.categoriaProfissional === grp;
+          return c?.categoriaProfissional === grp || (grp === 'TAS' && c?.categoriaProfissional === 'AO');
         });
         return temColabDoGrupo ? sum + f.horas : sum;
       }, 0);
@@ -106,18 +108,106 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   // Repartição por Tipo de Formação
   const tipos: FormacaoCategoria[] = ['Externa', 'Interna', 'Enfermagem', 'ACAF'];
-  const desempenhoTipos = useMemo(() => {
+  const coresCategorias: Record<FormacaoCategoria, { bg: string; text: string; fill: string }> = {
+    Externa: { bg: 'bg-blue-100', text: 'text-blue-800', fill: '#0284c7' },
+    Interna: { bg: 'bg-teal-100', text: 'text-teal-800', fill: '#0d9488' },
+    Enfermagem: { bg: 'bg-purple-100', text: 'text-purple-800', fill: '#8b5cf6' },
+    ACAF: { bg: 'bg-amber-100', text: 'text-amber-800', fill: '#f59e0b' }
+  };
+
+  const metricasCategorias = useMemo(() => {
     return tipos.map(t => {
       const subset = formacoesDoAno.filter(f => f.categoria === t);
       const horas = subset.reduce((sum, f) => sum + f.horas, 0);
+      const perc = totalHorasAno > 0 ? Math.round((horas / totalHorasAno) * 100) : 0;
       return {
-        tipo: t,
-        acoes: subset.length,
+        categoria: t,
+        count: subset.length,
         horas,
-        percentagemHoras: totalHorasAno > 0 ? Math.round((horas / totalHorasAno) * 100) : 0
+        perc,
+        cores: coresCategorias[t]
       };
     });
   }, [formacoesDoAno, totalHorasAno]);
+
+  const desempenhoTipos = useMemo(() => {
+    return metricasCategorias.map(m => ({
+      tipo: m.categoria,
+      acoes: m.count,
+      horas: m.horas,
+      percentagemHoras: m.perc
+    }));
+  }, [metricasCategorias]);
+
+  const categoriaMaisRepresentada = useMemo(() => {
+    return [...metricasCategorias].sort((a, b) => b.horas - a.horas)[0];
+  }, [metricasCategorias]);
+
+  // Helper para gerar caminhos SVG de gráfico circular (Pie / Donut Chart)
+  const gerarCaminhosDonut = (dados: Array<{ perc: number; fill: string; label: string }>) => {
+    let acumulado = 0;
+    const raio = 70;
+    const raioInterno = 40;
+    const centroX = 100;
+    const centroY = 100;
+
+    const validos = dados.filter(d => d.perc > 0);
+    if (validos.length === 1 && validos[0].perc >= 99.5) {
+      const item = validos[0];
+      const rMedio = (raio + raioInterno) / 2;
+      const espessura = raio - raioInterno;
+      return (
+        <circle
+          cx={centroX}
+          cy={centroY}
+          r={rMedio}
+          fill="none"
+          stroke={item.fill}
+          strokeWidth={espessura}
+        />
+      );
+    }
+
+    return dados.map((item, idx) => {
+      if (item.perc <= 0) return null;
+      const anguloInicio = (acumulado * 360) / 100;
+      acumulado += item.perc;
+      const anguloFim = (acumulado * 360) / 100;
+
+      const inicioRad = ((anguloInicio - 90) * Math.PI) / 180;
+      const fimRad = ((anguloFim - 90) * Math.PI) / 180;
+
+      const x1 = centroX + raio * Math.cos(inicioRad);
+      const y1 = centroY + raio * Math.sin(inicioRad);
+      const x2 = centroX + raio * Math.cos(fimRad);
+      const y2 = centroY + raio * Math.sin(fimRad);
+
+      const x3 = centroX + raioInterno * Math.cos(fimRad);
+      const y3 = centroY + raioInterno * Math.sin(fimRad);
+      const x4 = centroX + raioInterno * Math.cos(inicioRad);
+      const y4 = centroY + raioInterno * Math.sin(inicioRad);
+
+      const grandeArco = item.perc > 50 ? 1 : 0;
+
+      const pathData = [
+        `M ${x1} ${y1}`,
+        `A ${raio} ${raio} 0 ${grandeArco} 1 ${x2} ${y2}`,
+        `L ${x3} ${y3}`,
+        `A ${raioInterno} ${raioInterno} 0 ${grandeArco} 0 ${x4} ${y4}`,
+        'Z'
+      ].join(' ');
+
+      return (
+        <path
+          key={idx}
+          d={pathData}
+          fill={item.fill}
+          stroke="#ffffff"
+          strokeWidth="2"
+        />
+      );
+    });
+  };
 
   // Formações filtradas de acordo com o tipo de relatório selecionado
   const formacoesFiltradas = useMemo(() => {
@@ -154,6 +244,17 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       });
     }
 
+    if (tipoRelatorio === 'acumulativo') {
+      return doAno.filter(f => {
+        const parts = f.data.split('-');
+        if (parts.length >= 2) {
+          const m = parseInt(parts[1], 10);
+          return m >= 1 && m <= mesSelecionado;
+        }
+        return false;
+      });
+    }
+
     return doAno;
   }, [formacoes, anoAtual, tipoRelatorio, mesSelecionado, trimestreSelecionado]);
 
@@ -172,6 +273,34 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     return formacoesFiltradas.filter(f => f.burocracia).length;
   }, [formacoesFiltradas]);
 
+  // Evolução Cumulativa Mês a Mês (para relatório acumulativo)
+  const dadosAcumuladosMesAMes = useMemo(() => {
+    let acumuladoHoras = 0;
+    let acumuladoAcoes = 0;
+    const meses = [];
+    for (let m = 1; m <= mesSelecionado; m++) {
+      const doMes = formacoesDoAno.filter(f => {
+        const parts = f.data.split('-');
+        return parts.length >= 2 && parseInt(parts[1], 10) === m;
+      });
+      const horasMes = doMes.reduce((sum, f) => sum + (f.horas || 0), 0);
+      const acoesMes = doMes.length;
+      acumuladoHoras += horasMes;
+      acumuladoAcoes += acoesMes;
+      const percMeta = metaHoras > 0 ? Math.round((acumuladoHoras / metaHoras) * 100) : 0;
+      meses.push({
+        mesNumero: m,
+        nomeMes: nomesMeses[m - 1],
+        acoesMes,
+        horasMes,
+        acumuladoAcoes,
+        acumuladoHoras,
+        percMeta
+      });
+    }
+    return meses;
+  }, [formacoesDoAno, mesSelecionado, metaHoras, nomesMeses]);
+
   // Horas por Categoria
   const breakdownCategorias = useMemo(() => {
     const cats: FormacaoCategoria[] = ['Externa', 'Interna', 'Enfermagem', 'ACAF'];
@@ -188,6 +317,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       exportRelatorioMensalToExcel(formacoes, colaboradores, anoAtual, mesSelecionado);
     } else if (tipoRelatorio === 'trimestral') {
       exportRelatorioTrimestralToExcel(formacoes, colaboradores, anoAtual, trimestreSelecionado);
+    } else if (tipoRelatorio === 'acumulativo') {
+      exportFormacoesToExcel(
+        formacoesFiltradas,
+        colaboradores,
+        anoAtual,
+        `Relatorio_Formacoes_Acumulativas_Jan_a_${nomesMeses[mesSelecionado - 1]}_${anoAtual}`
+      );
     } else {
       exportFormacoesToExcel(formacoesFiltradas, colaboradores, anoAtual, `Relatorio_Anual_Servico_RAD_${anoAtual}`);
     }
@@ -201,8 +337,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     if (tipoRelatorio === 'desempenho') return `Relatório Executivo de Desempenho e Evolução Formativa · Exercício ${anoAtual}`;
     if (tipoRelatorio === 'mensal') return `Relatório Mensal de Formação · ${nomesMeses[mesSelecionado - 1]} de ${anoAtual}`;
     if (tipoRelatorio === 'trimestral') return `Relatório Trimestral de Formação · ${trimestreSelecionado}º Trimestre de ${anoAtual}`;
+    if (tipoRelatorio === 'acumulativo') return `Relatório de Formações Acumulativas (Janeiro a ${nomesMeses[mesSelecionado - 1]}) · Ano ${anoAtual}`;
     return `Relatório Anual Consolidado do Plano de Formação · Ano ${anoAtual}`;
-  }, [tipoRelatorio, mesSelecionado, trimestreSelecionado, anoAtual]);
+  }, [tipoRelatorio, mesSelecionado, trimestreSelecionado, anoAtual, nomesMeses]);
 
   return (
     <div className="space-y-6">
@@ -248,9 +385,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             >
               Relatório Mensal
             </button>
+            <button
+              onClick={() => setTipoRelatorio('acumulativo')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                tipoRelatorio === 'acumulativo' ? 'bg-white text-teal-800 shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-teal-700" />
+              <span>Formações Acumulativas</span>
+            </button>
           </div>
 
-          {/* Botões de Ação na Mesma Posição para Todos os Relatórios (Anual, Trimestral e Mensal) */}
+          {/* Botões de Ação na Mesma Posição para Todos os Relatórios */}
           <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto ml-0 lg:ml-auto shrink-0">
             {tipoRelatorio !== 'desempenho' && (
               <button
@@ -265,11 +411,23 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
             <button
               onClick={() => setIsPdfModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-teal-700 hover:bg-teal-800 rounded-md shadow-xs transition-colors cursor-pointer"
-              title="Exportar Relatório de Desempenho em PDF profissional com gráficos de barras D3.js"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-md transition-colors cursor-pointer shadow-2xs whitespace-nowrap"
+              title={
+                tipoRelatorio === 'desempenho' ? 'Exportar Relatório de Desempenho em PDF' :
+                tipoRelatorio === 'anual' ? 'Exportar Relatório Anual em PDF' :
+                tipoRelatorio === 'trimestral' ? 'Exportar Relatório Trimestral em PDF' :
+                tipoRelatorio === 'mensal' ? 'Exportar Relatório Mensal em PDF' :
+                'Exportar Relatório de Formações Acumulativas em PDF'
+              }
             >
-              <FileDown className="w-4 h-4 text-teal-200" />
-              <span>Exportar Relatório de Desempenho (PDF)</span>
+              <FileDown className="w-4 h-4 text-emerald-700" />
+              <span>
+                {tipoRelatorio === 'desempenho' && 'Exportar Relatório de Desempenho (PDF)'}
+                {tipoRelatorio === 'anual' && 'Exportar Relatório Anual (PDF)'}
+                {tipoRelatorio === 'trimestral' && 'Exportar Relatório Trimestral (PDF)'}
+                {tipoRelatorio === 'mensal' && 'Exportar Relatório Mensal (PDF)'}
+                {tipoRelatorio === 'acumulativo' && 'Exportar Relatório Acumulativo (PDF)'}
+              </span>
             </button>
 
             <button
@@ -283,13 +441,15 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
         </div>
 
-        {/* Linha Secundária de Filtro de Período (Aparece em Mensal ou Trimestral sem Deslocar os Botões de Ação) */}
-        {(tipoRelatorio === 'mensal' || tipoRelatorio === 'trimestral') && (
+        {/* Linha Secundária de Filtro de Período (Aparece em Mensal, Trimestral ou Acumulativo) */}
+        {(tipoRelatorio === 'mensal' || tipoRelatorio === 'trimestral' || tipoRelatorio === 'acumulativo') && (
           <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs bg-slate-50/70 p-2.5 rounded-md border border-slate-200/80">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-teal-700" />
               <span className="font-semibold text-slate-700">
-                {tipoRelatorio === 'mensal' ? 'Mês do Relatório:' : 'Trimestre do Relatório:'}
+                {tipoRelatorio === 'mensal' && 'Mês do Relatório:'}
+                {tipoRelatorio === 'trimestral' && 'Trimestre do Relatório:'}
+                {tipoRelatorio === 'acumulativo' && 'Acumular até ao Mês de:'}
               </span>
               
               {tipoRelatorio === 'mensal' && (
@@ -318,14 +478,37 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                   <option value={4}>4º Trimestre (Outubro - Dezembro)</option>
                 </select>
               )}
+
+              {tipoRelatorio === 'acumulativo' && (
+                <select
+                  value={mesSelecionado}
+                  onChange={(e) => setMesSelecionado(parseInt(e.target.value, 10))}
+                  className="py-1 px-3 bg-white border border-slate-300 rounded-md font-semibold text-slate-800 focus:ring-2 focus:ring-teal-500 cursor-pointer shadow-2xs"
+                >
+                  {nomesMeses.map((m, idx) => (
+                    <option key={m} value={idx + 1}>
+                      Janeiro a {m} ({idx + 1} {idx === 0 ? 'mês' : 'meses'} acumulados)
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div className="text-[11px] text-slate-500 font-mono">
-              <span>Formações no período: </span>
+              <span>{tipoRelatorio === 'acumulativo' ? 'Formações acumuladas: ' : 'Formações no período: '}</span>
               <strong className="text-teal-800 font-bold">{formacoesFiltradas.length}</strong>
               <span className="mx-1.5">·</span>
               <span>Total horas: </span>
               <strong className="text-teal-800 font-bold">{totalHoras} h</strong>
+              {tipoRelatorio === 'acumulativo' && (
+                <>
+                  <span className="mx-1.5">·</span>
+                  <span>Meta anual: </span>
+                  <strong className="text-emerald-700 font-bold">
+                    {metaHoras > 0 ? Math.round((totalHoras / metaHoras) * 100) : 0}% ({metaHoras}h)
+                  </strong>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -359,14 +542,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 <p>Data de Emissão: <strong className="text-slate-900">{new Date().toLocaleDateString('pt-PT')}</strong></p>
                 <p>Exercício: <strong className="text-slate-900 font-bold">{anoAtual}</strong></p>
                 <p>Classificação: <span className="text-teal-800 font-bold">Relatório Executivo</span></p>
-                <button
-                  type="button"
-                  onClick={() => setIsPdfModalOpen(true)}
-                  className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold text-white bg-teal-700 hover:bg-teal-800 rounded transition-colors cursor-pointer"
-                >
-                  <FileDown className="w-3.5 h-3.5" />
-                  <span>Exportar em PDF</span>
-                </button>
               </div>
             </div>
           </div>
@@ -469,11 +644,161 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             />
           </div>
 
-          {/* 3. DESEMPENHO POR GRUPO E CATEGORIA PROFISSIONAL */}
+          {/* 3. GRÁFICOS CIRCULARES DE DISTRIBUIÇÃO & CONFORMIDADE (ANÁLISE DE DADOS) */}
+          <div className="space-y-3 print-break-inside-avoid">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+              <PieChartIcon className="w-4 h-4 text-teal-700" />
+              <span>3. Gráficos Circulares de Distribuição & Conformidade (Análise de Dados)</span>
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Gráfico Circular 1: Distribuição por Categoria */}
+              <div className="bg-slate-50/70 p-4 rounded-lg border border-slate-200 text-center flex flex-col items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center justify-center gap-1.5">
+                    <PieChartIcon className="w-3.5 h-3.5 text-teal-700" />
+                    <span>Categorias de Formação</span>
+                  </h4>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Proporção do volume horário por tipo
+                  </p>
+                </div>
+
+                <div className="py-2">
+                  <svg width="150" height="150" viewBox="0 0 200 200" className="mx-auto drop-shadow-2xs">
+                    {gerarCaminhosDonut(metricasCategorias.map(m => ({ perc: m.perc, fill: m.cores.fill, label: m.categoria })))}
+                    <circle cx="100" cy="100" r="38" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
+                    <text x="100" y="96" textAnchor="middle" className="text-[14px] font-bold fill-slate-900 font-mono">
+                      {totalHorasAno}h
+                    </text>
+                    <text x="100" y="112" textAnchor="middle" className="text-[9px] fill-slate-500 font-sans">
+                      Total Horas
+                    </text>
+                  </svg>
+                </div>
+
+                <div className="w-full grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-200/80 text-[10.5px]">
+                  {metricasCategorias.map(c => (
+                    <div key={c.categoria} className="flex items-center gap-1.5 justify-start">
+                      <span className="w-2.5 h-2.5 rounded-xs shrink-0" style={{ backgroundColor: c.cores.fill }} />
+                      <span className="text-slate-700 truncate">
+                        <strong>{c.categoria}</strong>: {c.perc}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Gráfico Circular 2: Validação Burocrática */}
+              <div className="bg-slate-50/70 p-4 rounded-lg border border-slate-200 text-center flex flex-col items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center justify-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-teal-700" />
+                    <span>Validação Burocrática</span>
+                  </h4>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Conformidade com a matriz documental
+                  </p>
+                </div>
+
+                <div className="py-2">
+                  <svg width="150" height="150" viewBox="0 0 200 200" className="mx-auto drop-shadow-2xs">
+                    {gerarCaminhosDonut([
+                      { perc: percBurocracia, fill: '#0d9488', label: 'Validada' },
+                      { perc: Math.max(0, 100 - percBurocracia), fill: '#cbd5e1', label: 'Pendente' }
+                    ])}
+                    <circle cx="100" cy="100" r="38" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
+                    <text x="100" y="96" textAnchor="middle" className="text-[16px] font-bold fill-slate-900 font-mono">
+                      {percBurocracia}%
+                    </text>
+                    <text x="100" y="112" textAnchor="middle" className="text-[9px] fill-slate-500 font-sans">
+                      Conforme
+                    </text>
+                  </svg>
+                </div>
+
+                <div className="w-full flex items-center justify-center gap-4 pt-2 border-t border-slate-200/80 text-[10.5px]">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-xs bg-teal-600 shrink-0" />
+                    <span className="text-slate-700">Validada ({percBurocracia}%)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-xs bg-slate-300 shrink-0" />
+                    <span className="text-slate-700">Pendente ({Math.max(0, 100 - percBurocracia)}%)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Gráfico Circular 3: Enquadramento no Plano Anual (PNF) */}
+              <div className="bg-slate-50/70 p-4 rounded-lg border border-slate-200 text-center flex flex-col items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center justify-center gap-1.5">
+                    <Target className="w-3.5 h-3.5 text-teal-700" />
+                    <span>Plano Anual (PNF)</span>
+                  </h4>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Taxa de inclusão no plano de necessidades
+                  </p>
+                </div>
+
+                <div className="py-2">
+                  <svg width="150" height="150" viewBox="0 0 200 200" className="mx-auto drop-shadow-2xs">
+                    {gerarCaminhosDonut([
+                      { perc: percPnf, fill: '#10b981', label: 'No Plano' },
+                      { perc: Math.max(0, 100 - percPnf), fill: '#cbd5e1', label: 'Fora do Plano' }
+                    ])}
+                    <circle cx="100" cy="100" r="38" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
+                    <text x="100" y="96" textAnchor="middle" className="text-[16px] font-bold fill-slate-900 font-mono">
+                      {percPnf}%
+                    </text>
+                    <text x="100" y="112" textAnchor="middle" className="text-[9px] fill-slate-500 font-sans">
+                      No PNF (Sim)
+                    </text>
+                  </svg>
+                </div>
+
+                <div className="w-full flex items-center justify-center gap-4 pt-2 border-t border-slate-200/80 text-[10.5px]">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-xs bg-emerald-500 shrink-0" />
+                    <span className="text-slate-700">No PNF ({percPnf}%)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-xs bg-slate-300 shrink-0" />
+                    <span className="text-slate-700">Fora PNF ({Math.max(0, 100 - percPnf)}%)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 4. DISTRIBUIÇÃO POR TIPOLOGIA DE AÇÃO FORMATIVA */}
+          <div className="space-y-3 print-break-inside-avoid">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-teal-700" />
+              <span>4. Distribuição por Tipologia de Ação Formativa</span>
+            </h3>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              {desempenhoTipos.map(t => (
+                <div key={t.tipo} className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <strong className="text-slate-900">{t.tipo}</strong>
+                    <span className="font-mono text-teal-800 font-bold">{t.percentagemHoras}%</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600 text-[11px] mt-1.5 font-mono">
+                    <span>{t.acoes} formações</span>
+                    <strong className="text-slate-900">{t.horas} horas</strong>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 5. DESEMPENHO E CUMPRIMENTO POR GRUPO PROFISSIONAL */}
           <div className="space-y-3 print-break-inside-avoid">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
               <Users className="w-4 h-4 text-teal-700" />
-              <span>3. Desempenho e Cumprimento por Grupo Profissional</span>
+              <span>5. Desempenho e Cumprimento por Grupo Profissional</span>
             </h3>
 
             <div className="overflow-x-auto border border-slate-200 rounded-lg">
@@ -531,41 +856,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             </div>
           </div>
 
-          {/* 4. DISTRIBUIÇÃO POR TIPOLOGIA DE FORMAÇÃO */}
-          <div className="space-y-3 print-break-inside-avoid">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-teal-700" />
-              <span>4. Distribuição por Tipologia de Ação Formativa</span>
-            </h3>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              {desempenhoTipos.map(t => (
-                <div key={t.tipo} className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <strong className="text-slate-900">{t.tipo}</strong>
-                    <span className="font-mono text-teal-800 font-bold">{t.percentagemHoras}%</span>
-                  </div>
-                  <div className="flex justify-between text-slate-600 text-[11px] mt-1.5 font-mono">
-                    <span>{t.acoes} formações</span>
-                    <strong className="text-slate-900">{t.horas} horas</strong>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 5. PARECER E VALIDAÇÃO DA AUDITORIA DA QUALIDADE */}
+          {/* 6. PARECER E VALIDAÇÃO DA AUDITORIA DA QUALIDADE */}
           <div className="p-4 bg-teal-50/50 border border-teal-200 rounded-lg text-xs space-y-1.5 print-break-inside-avoid">
             <strong className="text-teal-950 font-bold block flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-teal-700" />
-              Conclusões da Auditoria de Desempenho e Conformidade:
+              6. Conclusões da Auditoria de Desempenho e Conformidade:
             </strong>
             <p className="text-slate-700 leading-relaxed text-[11px]">
-              O presente relatório comprova que no exercício de <strong>{anoAtual}</strong> foram concluídas <strong>{totalAcoesAno}</strong> ações formativas perfazendo um volume total de <strong>{totalHorasAno} horas</strong>. A taxa global de integração com o Plano de Necessidades Formativas (PNF) fixou-se em <strong>{percPnf}%</strong> e o nível de conformidade burocrática atingiu <strong>{percBurocracia}%</strong>. O documento cumpre com os normativos hospitalares da ULSAR, EPE e encontra-se devidamente auditado no sistema RadForm.
+              O presente relatório comprova que no exercício de <strong>{anoAtual}</strong> foram concluídas <strong>{totalAcoesAno}</strong> ações formativas perfazendo um volume total de <strong>{totalHorasAno} horas</strong>. A análise dos gráficos circulares de distribuição evidencia que a tipologia com maior volume foi <strong>{categoriaMaisRepresentada?.categoria || 'Externa'}</strong> com <strong>{categoriaMaisRepresentada?.horas || 0} horas</strong> ({categoriaMaisRepresentada?.perc || 0}% do total). No âmbito da governação clínica e planeamento, a taxa de integração no Plano de Necessidades Formativas (PNF) fixou-se em <strong>{percPnf}%</strong> ({acoesPnfAno} ações no plano) e a conformidade burocrática dos processos atingiu <strong>{percBurocracia}%</strong> ({acoesBurocraciaOkAno} ações validadas). O documento cumpre os normativos de acreditação hospitalar da ULSAR, EPE e encontra-se devidamente auditado no sistema RadForm.
             </p>
           </div>
 
-          {/* 6. BLOCO DE ASSINATURAS OFICIAIS */}
+          {/* 7. BLOCO DE ASSINATURAS OFICIAIS */}
           <div className="pt-8 border-t border-slate-300 mt-6 print-break-inside-avoid">
             <div className="grid grid-cols-2 gap-12 text-center text-xs text-slate-700">
               <div>
@@ -670,6 +972,63 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             ))}
           </div>
 
+          {/* Tabela de Evolução Cumulativa Mês a Mês (Apenas para Relatório Acumulativo) */}
+          {tipoRelatorio === 'acumulativo' && (
+            <div className="space-y-2">
+              <h3 className="text-xs uppercase font-bold tracking-wider text-slate-700 flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-teal-700" />
+                <span>Evolução Cumulativa Mês a Mês (Janeiro a {nomesMeses[mesSelecionado - 1]}):</span>
+              </h3>
+
+              <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 border-b border-slate-200 text-slate-800 font-semibold text-[11px]">
+                      <th className="py-2.5 px-3">Mês</th>
+                      <th className="py-2.5 px-3 text-center">Ações no Mês</th>
+                      <th className="py-2.5 px-3 text-right">Horas no Mês</th>
+                      <th className="py-2.5 px-3 text-center font-bold text-teal-900 bg-teal-50/50">Ações Acumuladas</th>
+                      <th className="py-2.5 px-3 text-right font-bold text-teal-900 bg-teal-50/50 font-mono">Horas Acumuladas</th>
+                      <th className="py-2.5 px-3 text-center">Progresso Meta Anual ({metaHoras}h)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                    {dadosAcumuladosMesAMes.map(m => (
+                      <tr key={m.mesNumero} className="hover:bg-slate-50/50">
+                        <td className="py-2 px-3 font-sans font-semibold text-slate-900">
+                          {m.nomeMes}
+                        </td>
+                        <td className="py-2 px-3 text-center text-slate-700">
+                          {m.acoesMes}
+                        </td>
+                        <td className="py-2 px-3 text-right text-slate-700">
+                          {m.horasMes} h
+                        </td>
+                        <td className="py-2 px-3 text-center font-bold text-teal-900 bg-teal-50/30">
+                          {m.acumuladoAcoes}
+                        </td>
+                        <td className="py-2 px-3 text-right font-bold text-teal-900 bg-teal-50/30">
+                          {m.acumuladoHoras} h
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <div className="flex items-center gap-2 justify-center">
+                            <div className="w-20 bg-slate-200 rounded-full h-2 overflow-hidden">
+                              <div 
+                                className={`h-2 rounded-full ${m.percMeta >= 100 ? 'bg-emerald-600' : 'bg-teal-600'}`}
+                                style={{ width: `${Math.min(100, m.percMeta)}%` }}
+                              />
+                            </div>
+                            <span className="font-bold text-[11px] text-slate-800">{m.percMeta}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Tabela Detalhada de Formações do Período */}
           <div>
             <h3 className="text-xs uppercase font-bold tracking-wider text-slate-700 mb-2">
@@ -760,6 +1119,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         colaboradores={colaboradores}
         anoAtual={anoAtual}
         metaAtual={metaAtual}
+        tipoRelatorioInicial={tipoRelatorio}
+        mesInicial={mesSelecionado}
+        trimestreInicial={trimestreSelecionado}
       />
     </div>
   );

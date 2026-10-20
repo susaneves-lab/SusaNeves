@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas-pro';
 import { FormacaoFutura, DestinatarioGrupo, SiteFormacaoRadar } from '../types';
 import { FUTURE_FORMACOES_RADAR, INITIAL_SITES_RADAR } from '../data/futureFormations';
 import { 
@@ -26,7 +28,8 @@ import {
   Check,
   FileSpreadsheet,
   Printer,
-  FileDown
+  FileDown,
+  Loader2
 } from 'lucide-react';
 import { exportRadarEventosToExcel, printRadarEventosPDF } from '../utils/exportUtils';
 
@@ -69,8 +72,11 @@ export const FutureRadarView: React.FC<FutureRadarViewProps> = ({ onPlanearForma
   // Modal com a Lista de Portais Ativos
   const [isVerPortaisOpen, setIsVerPortaisOpen] = useState(false);
 
-  // Temas específicos disponíveis no Radar de Formação Futura
-  const temasDisponiveis = [
+  // Temas específicos e monitorizados disponíveis no Radar de Formação Futura
+  const TEMAS_PADRAO = [
+    'Efeitos secundários de Radioterapia',
+    'Dosimetria',
+    'Comunicação ao doente oncológico',
     'Radioterapia',
     'Oncologia',
     'Cancro',
@@ -88,6 +94,56 @@ export const FutureRadarView: React.FC<FutureRadarViewProps> = ({ onPlanearForma
     'Física Médica',
     'Qualidade e Gestão'
   ];
+
+  const [temasMonitorizados, setTemasMonitorizados] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('radform_temas_radar_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const obrigatorios = ['Efeitos secundários de Radioterapia', 'Dosimetria', 'Comunicação ao doente oncológico'];
+          return Array.from(new Set([...obrigatorios, ...parsed]));
+        }
+      }
+    } catch {
+      // fallback
+    }
+    return TEMAS_PADRAO;
+  });
+
+  const [temaAdicionadoRecentemente, setTemaAdicionadoRecentemente] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('radform_tema_recente_radar') || null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [isAdicionarTemaModalOpen, setIsAdicionarTemaModalOpen] = useState(false);
+  const [novoTemaInput, setNovoTemaInput] = useState('');
+
+  const handleAdicionarNovoTema = (e: React.FormEvent) => {
+    e.preventDefault();
+    const nomeLimpo = novoTemaInput.trim();
+    if (!nomeLimpo) return;
+
+    const novaLista = [nomeLimpo, ...temasMonitorizados.filter(t => t.toLowerCase() !== nomeLimpo.toLowerCase())];
+    setTemasMonitorizados(novaLista);
+    setTemaAdicionadoRecentemente(nomeLimpo);
+    try {
+      localStorage.setItem('radform_temas_radar_v2', JSON.stringify(novaLista));
+      localStorage.setItem('radform_tema_recente_radar', nomeLimpo);
+    } catch {}
+
+    setNovoTemaInput('');
+    setIsAdicionarTemaModalOpen(false);
+    setMensagemSucesso(`Tema "${nomeLimpo}" adicionado com sucesso à monitorização e aos filtros do Radar.`);
+    setTimeout(() => setMensagemSucesso(null), 4000);
+  };
+
+  const temasDisponiveis = useMemo(() => {
+    return Array.from(new Set(temasMonitorizados));
+  }, [temasMonitorizados]);
 
   // Entidades únicas para o filtro
   const entidadesDisponiveis = useMemo(() => {
@@ -254,6 +310,61 @@ Agendado automaticamente através da plataforma RadForm para o endereço: radfor
     }).sort((a, b) => new Date(a.dataInicio).getTime() - new Date(b.dataInicio).getTime());
   }, [listaEventos, searchTerm, selectedTema, selectedAmbito, selectedFormato, selectedEntidade, selectedCusto]);
 
+  const pdfDossierRef = useRef<HTMLDivElement>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  // Exportar documento PDF visual apelativo com alta resolução
+  const handleExportarPdfVisual = async () => {
+    if (!pdfDossierRef.current || eventosFiltrados.length === 0) return;
+    setIsGeneratingPdf(true);
+    try {
+      const element = pdfDossierRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = 210;
+      const pdfHeight = 297;
+      const margin = 8;
+      const contentWidth = pdfWidth - margin * 2;
+      const contentHeight = (canvas.height * contentWidth) / canvas.width;
+
+      let heightLeft = contentHeight;
+      let position = margin;
+      let pageNumber = 1;
+
+      pdf.addImage(imgData, 'PNG', margin, position, contentWidth, contentHeight, undefined, 'FAST');
+      heightLeft -= (pdfHeight - margin * 2);
+
+      while (heightLeft > 0) {
+        position = margin - (pageNumber * (pdfHeight - margin * 2));
+        pdf.addPage();
+        pageNumber++;
+        pdf.addImage(imgData, 'PNG', margin, position, contentWidth, contentHeight, undefined, 'FAST');
+        heightLeft -= (pdfHeight - margin * 2);
+      }
+
+      const dataHoje = new Date().toISOString().slice(0, 10);
+      pdf.save(`RadForm_Radar_Formacoes_Futuras_${dataHoje}.pdf`);
+      setMensagemSucesso('Dossier visual em PDF das formações futuras gerado e descarregado com sucesso.');
+      setTimeout(() => setMensagemSucesso(null), 4000);
+    } catch (err) {
+      console.error('Erro ao gerar PDF visual:', err);
+      printRadarEventosPDF(eventosFiltrados);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleImprimir = () => {
+    window.print();
+  };
+
   return (
     <div className="space-y-6">
       
@@ -267,9 +378,18 @@ Agendado automaticamente através da plataforma RadForm para o endereço: radfor
                 Radar de Formações Futuras em Radioterapia & Oncologia
               </h2>
             </div>
-            <p className="text-xs text-slate-600 mt-1 max-w-3xl leading-relaxed">
-              Pesquisa contínua e agregador de webinars, jornadas e congressos nacionais e internacionais.
-              Monitorização de <strong>{sitesRadar.length} portais oficiais</strong> nos temas: <em>Radioterapia, Oncologia, Cancro, Inteligência Emocional, Gestão de Tempo, Burnout, Acelerador Linear, Elaborar Investigação, Elaborar Artigos Científicos, Desenvolvimento Pessoal e Emocional, Tumores, Doente Oncológico, Radiação e Radiobiologia</em>.
+            <p className="text-xs text-slate-600 mt-1.5 max-w-4xl leading-relaxed">
+              Pesquisa contínua e agregador de webinars, jornadas e congressos nacionais e internacionais.{' '}
+              {temaAdicionadoRecentemente && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 mr-1.5 rounded-full text-[11px] font-bold bg-teal-100 text-teal-800 border border-teal-300 shadow-2xs">
+                  <Sparkles className="w-3.5 h-3.5 text-teal-700 animate-pulse" />
+                  <span>Tema adicionado recentemente: <strong className="underline decoration-teal-600">{temaAdicionadoRecentemente}</strong></span>
+                </span>
+              )}
+              Monitorização de <strong>{sitesRadar.length} portais oficiais</strong> nos temas:{' '}
+              <span className="italic text-slate-700">
+                {temasMonitorizados.join(', ')}.
+              </span>
             </p>
             <div className="flex items-center gap-2 mt-2 text-[11px] text-slate-500 font-mono">
               <span>Última pesquisa nos sites: <strong>{ultimoRefresh}</strong></span>
@@ -284,7 +404,7 @@ Agendado automaticamente através da plataforma RadForm para o endereço: radfor
             </div>
           </div>
 
-          {/* Botões de Ação do Radar: Refresh e Adicionar Novo Site */}
+          {/* Botões de Ação do Radar: Refresh, Adicionar Tema e Adicionar Novo Site */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <button
               onClick={handleRefreshPesquisa}
@@ -298,6 +418,16 @@ Agendado automaticamente através da plataforma RadForm para o endereço: radfor
             >
               <RotateCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-teal-700' : 'text-slate-600'}`} />
               <span>{isRefreshing ? 'A Pesquisar nos Portais...' : 'Atualizar Pesquisa'}</span>
+            </button>
+
+            {/* Botão Requisito 6: Adicionar mais temas na pesquisa */}
+            <button
+              onClick={() => setIsAdicionarTemaModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-teal-900 bg-teal-50 hover:bg-teal-100 border border-teal-300 rounded-lg shadow-2xs transition-colors cursor-pointer whitespace-nowrap active:scale-98"
+              title="Adicionar mais temas à monitorização de pesquisa do Radar"
+            >
+              <Tag className="w-3.5 h-3.5 text-teal-700" />
+              <span>Adicionar Tema à Pesquisa</span>
             </button>
 
             <button
@@ -428,36 +558,61 @@ Agendado automaticamente através da plataforma RadForm para o endereço: radfor
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 px-1 bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
           <span>A exibir <strong>{eventosFiltrados.length}</strong> eventos ordenados por data cronológica:</span>
           
-          {/* Botões Requisito 13: Exportar Excel e Imprimir / Exportar PDF */}
-          <div className="flex items-center gap-2">
+          {/* Botões Requisito 1: Exportar Excel, Imprimir e Exportar PDF separados */}
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => exportRadarEventosToExcel(eventosFiltrados)}
               disabled={eventosFiltrados.length === 0}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-2xs ${
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors shadow-2xs whitespace-nowrap ${
                 eventosFiltrados.length > 0
-                  ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 cursor-pointer'
+                  ? 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 cursor-pointer active:scale-98'
                   : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
               }`}
               title="Exportar todos os eventos cronológicos para folha de cálculo Excel (.xlsx)"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+              <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
               <span>Exportar Excel</span>
             </button>
 
             <button
               type="button"
-              onClick={() => printRadarEventosPDF(eventosFiltrados)}
+              onClick={handleExportarPdfVisual}
+              disabled={eventosFiltrados.length === 0 || isGeneratingPdf}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors shadow-2xs whitespace-nowrap ${
+                eventosFiltrados.length > 0 && !isGeneratingPdf
+                  ? 'text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 cursor-pointer active:scale-98'
+                  : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+              }`}
+              title="Exportar documento visual executivo com todas as futuras formações em PDF"
+            >
+              {isGeneratingPdf ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-700" />
+                  <span>A gerar PDF visual...</span>
+                </>
+              ) : (
+                <>
+                  <FileDown className="w-4 h-4 text-emerald-700" />
+                  <span>Exportar PDF</span>
+                </>
+              )}
+            </button>
+
+            {/* Botão de Imprimir colocado em último */}
+            <button
+              type="button"
+              onClick={handleImprimir}
               disabled={eventosFiltrados.length === 0}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-2xs ${
                 eventosFiltrados.length > 0
-                  ? 'bg-teal-700 hover:bg-teal-800 text-white cursor-pointer'
+                  ? 'text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 cursor-pointer'
                   : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
               }`}
-              title="Imprimir ou Guardar em PDF a lista de eventos cronológicos formatada"
+              title="Imprimir a lista de formações futuras formatada"
             >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Imprimir / Exportar PDF</span>
+              <Printer className="w-3.5 h-3.5 text-slate-600" />
+              <span>Imprimir</span>
             </button>
           </div>
         </div>
@@ -775,6 +930,264 @@ Agendado automaticamente através da plataforma RadForm para o endereço: radfor
           </div>
         </div>
       )}
+
+      {/* MODAL: ADICIONAR NOVO TEMA À PESQUISA DO RADAR (Requisito 6) */}
+      {isAdicionarTemaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-5 border border-slate-200 animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700">
+                  <Tag className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Adicionar Novo Tema à Pesquisa
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    O tema ficará ativo na pesquisa do radar e aparecerá destacado
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAdicionarTemaModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAdicionarNovoTema} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nome do Tema ou Palavra-Chave *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Efeitos secundários de Radioterapia, Dosimetria..."
+                  value={novoTemaInput}
+                  onChange={(e) => setNovoTemaInput(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-md focus:bg-white focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <span className="block text-[11px] font-semibold text-slate-500 mb-1.5">
+                  Sugestões Rápidas de Temas:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Efeitos secundários de Radioterapia',
+                    'Dosimetria',
+                    'Comunicação ao doente oncológico',
+                    'Braquiterapia de Alta Taxa (HDR)',
+                    'Inteligência Artificial em Radioterapia',
+                    'Radiocirurgia Estereotáxica (SRS)'
+                  ].map(sugestao => (
+                    <button
+                      key={sugestao}
+                      type="button"
+                      onClick={() => setNovoTemaInput(sugestao)}
+                      className="px-2 py-1 text-[11px] rounded bg-slate-100 hover:bg-teal-50 hover:text-teal-800 hover:border-teal-300 border border-slate-200 text-slate-600 transition-colors cursor-pointer"
+                    >
+                      + {sugestao}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-teal-50/70 border border-teal-200 text-[11px] text-teal-800 leading-relaxed">
+                <p>
+                  Ao submeter, este tema é imediatamente incorporado na lista de temas e aparecerá à frente de <strong>"Monitorização de {sitesRadar.length} portais oficiais nos temas:"</strong>.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setIsAdicionarTemaModalOpen(false)}
+                  className="px-3.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-md cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={!novoTemaInput.trim()}
+                  className="px-4 py-1.5 text-xs font-bold text-white bg-teal-700 hover:bg-teal-800 disabled:opacity-50 rounded-md shadow-xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Adicionar Tema</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Container do Dossier Visual em Alta Definição (Utilizado para Exportar PDF e Imprimir) */}
+      <div 
+        className="fixed -left-[9999px] -top-[9999px] z-[-100] print:static print:left-0 print:top-0 print:z-auto print:block"
+        aria-hidden="true"
+      >
+        <div 
+          ref={pdfDossierRef}
+          className="bg-white p-8 text-slate-800 font-sans space-y-6 print:p-0 print:space-y-4"
+          style={{ width: '820px', backgroundColor: '#ffffff' }}
+        >
+          {/* Cabeçalho Hospitalar Oficial (ULSAR, EPE · Serviço de Radioterapia) - Requisito 3 */}
+          <div className="border-b-2 border-teal-700 pb-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                    REPÚBLICA PORTUGUESA · SAÚDE
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                    SNS · SERVIÇO NACIONAL DE SAÚDE
+                  </span>
+                </div>
+                <h1 className="text-xl font-black text-teal-900 leading-tight">
+                  ULSAR, EPE · Serviço de Radioterapia
+                </h1>
+                <h2 className="text-sm font-bold text-slate-800 mt-0.5">
+                  Dossier Oficial do Radar de Formações Futuras & Oportunidades Científicas
+                </h2>
+                <p className="text-[11px] text-teal-800 font-medium mt-0.5">
+                  Unidade Local de Saúde do Alto Minho · RadForm Radioterapia
+                </p>
+              </div>
+              <div className="text-right text-[11px] text-slate-600 font-mono space-y-0.5 bg-slate-50 p-2.5 rounded-lg border border-slate-200 shrink-0">
+                <p><span className="text-slate-400 font-sans">Emissão:</span> <strong>{new Date().toLocaleDateString('pt-PT')}</strong></p>
+                <p><span className="text-slate-400 font-sans">Hora:</span> <strong>{new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</strong></p>
+                <p className="text-teal-700 font-bold font-sans mt-0.5">{eventosFiltrados.length} Eventos Selecionados</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 mt-3 leading-relaxed">
+              Pesquisa contínua e agregador de webinars, jornadas e congressos nacionais e internacionais.{' '}
+              {temaAdicionadoRecentemente && (
+                <span className="font-semibold text-teal-800">
+                  [Tema Recente: {temaAdicionadoRecentemente}] ·{' '}
+                </span>
+              )}
+              Monitorização de <strong>{sitesRadar.length} portais oficiais</strong> nos temas:{' '}
+              <span className="italic text-slate-700">
+                {temasMonitorizados.join(', ')}.
+              </span>
+            </p>
+          </div>
+
+          {/* Ribbon de Métricas Principais */}
+          <div className="grid grid-cols-4 gap-3">
+            <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg text-center">
+              <span className="text-[10px] font-bold uppercase text-slate-500 block">Total de Eventos</span>
+              <span className="text-xl font-black text-slate-900">{eventosFiltrados.length}</span>
+            </div>
+            <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-lg text-center">
+              <span className="text-[10px] font-bold uppercase text-emerald-700 block">Gratuitos (Grátis)</span>
+              <span className="text-xl font-black text-emerald-800">
+                {eventosFiltrados.filter(e => e.gratis).length}
+              </span>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg text-center">
+              <span className="text-[10px] font-bold uppercase text-blue-700 block">Webinars / Online</span>
+              <span className="text-xl font-black text-blue-800">
+                {eventosFiltrados.filter(e => e.formato === 'Webinar').length}
+              </span>
+            </div>
+            <div className="bg-purple-50 border border-purple-200 p-3 rounded-lg text-center">
+              <span className="text-[10px] font-bold uppercase text-purple-700 block">Presencial / Híbrido</span>
+              <span className="text-xl font-black text-purple-800">
+                {eventosFiltrados.filter(e => e.formato !== 'Webinar').length}
+              </span>
+            </div>
+          </div>
+
+          {/* Lista de Cartões Visuais dos Eventos */}
+          <div className="space-y-3.5">
+            {eventosFiltrados.map((evento, idx) => (
+              <div 
+                key={evento.id}
+                className="border border-slate-200 rounded-lg p-3.5 bg-white shadow-2xs space-y-2 break-inside-avoid"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-6 h-6 rounded-md bg-teal-800 text-white font-bold text-xs flex items-center justify-center shrink-0 mt-0.5 font-mono">
+                      {idx + 1}
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 leading-snug">
+                        {evento.titulo}
+                      </h3>
+                      <p className="text-xs font-semibold text-teal-800 mt-0.5">
+                        {evento.entidade}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                      evento.gratis 
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
+                        : 'bg-amber-50 text-amber-800 border-amber-300'
+                    }`}>
+                      {evento.gratis ? 'GRATUITO' : (evento.custoTexto || 'Pago')}
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                      {evento.formato}
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                      {evento.ambito}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 py-1.5 px-2.5 bg-slate-50 rounded-md text-[11px] border border-slate-150">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Data:</span>
+                    <strong className="text-slate-800 font-mono">
+                      {evento.dataInicio}{evento.dataFim ? ` a ${evento.dataFim}` : ''}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Tema / Horas:</span>
+                    <strong className="text-slate-800">
+                      {evento.temaPrincipal} {evento.horasEstimadas ? `(${evento.horasEstimadas}h)` : ''}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Destinatários:</span>
+                    <strong className="text-slate-800">
+                      {Array.isArray(evento.destinatariosSugeridos) ? evento.destinatariosSugeridos.join(', ') : '-'}
+                    </strong>
+                  </div>
+                </div>
+
+                {evento.descricao && (
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    {evento.descricao}
+                  </p>
+                )}
+
+                <div className="pt-1 flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-100">
+                  <span className="font-mono truncate max-w-[500px]">
+                    Inscrições: {evento.url}
+                  </span>
+                  <span>{evento.local}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Rodapé do Dossier */}
+          <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-400">
+            <span>RadForm ULSAR · Sistema Integrado de Gestão de Formação em Radioterapia</span>
+            <span>Documento Oficial de Planeamento e Monitorização</span>
+          </div>
+        </div>
+      </div>
 
     </div>
   );

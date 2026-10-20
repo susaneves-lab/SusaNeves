@@ -84,7 +84,7 @@ export const gerarTarefasPadraoAno = (ano: number): TarefaQualidade[] => [
     id: `task-${ano}-ini-3`,
     ano,
     titulo: 'Entregar as necessidades formativas para cada categoria profissional (6) para o novo ano',
-    descricao: 'Distribuir formulários de levantamento de necessidades para as 6 categorias: MR, ENF, TSDT, FIS, AT e AO.',
+    descricao: 'Distribuir formulários de levantamento de necessidades para as 6 categorias: MR, ENF, TSDT, FIS, AT e TAS.',
     periodicidade: 'inicio_ano',
     mes: 1,
     trimestre: 1,

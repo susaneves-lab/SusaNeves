@@ -80,9 +80,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 {erro}
               </p>
             )}
-            <p className="text-[11px] text-slate-400 mt-2">
-              Palavra-passe pré-definida de fábrica: <strong className="text-slate-600 font-mono">rad2026</strong> (configurável no menu de Configurações).
-            </p>
           </div>
 
           <button

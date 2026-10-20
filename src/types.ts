@@ -1,6 +1,6 @@
 export type FormacaoCategoria = 'Externa' | 'Interna' | 'Enfermagem' | 'ACAF';
 
-export type DestinatarioGrupo = 'MR' | 'ENF' | 'TSDT' | 'FIS' | 'AT' | 'AO';
+export type DestinatarioGrupo = 'MR' | 'ENF' | 'TSDT' | 'FIS' | 'AT' | 'TAS' | 'AO';
 
 export interface DestinatarioInfo {
   codigo: DestinatarioGrupo;
@@ -9,12 +9,13 @@ export interface DestinatarioInfo {
 }
 
 export const DESTINATARIOS_INFO: Record<DestinatarioGrupo, DestinatarioInfo> = {
-  MR: { codigo: 'MR', nomeCompleto: 'Médico Radioterapeuta', descricao: 'Corpo Clínico Médico de Radioterapia' },
+  MR: { codigo: 'MR', nomeCompleto: 'Médico(a) Radioncologista', descricao: 'Corpo Clínico Médico de Radioncologia' },
   ENF: { codigo: 'ENF', nomeCompleto: 'Enfermeiro(a)', descricao: 'Equipa de Enfermagem Oncológica' },
-  TSDT: { codigo: 'TSDT', nomeCompleto: 'Técnico Sup. Diagnóstico e Terapêutica', descricao: 'Técnicos de Radioterapia e Imagem' },
-  FIS: { codigo: 'FIS', nomeCompleto: 'Físico Médico', descricao: 'Física Médica e Dosimetria' },
-  AT: { codigo: 'AT', nomeCompleto: 'Assistente Técnico', descricao: 'Secretariado Clínico e Apoio Administrativo' },
-  AO: { codigo: 'AO', nomeCompleto: 'Técnico Auxiliar de Saúde (TAS / AO)', descricao: 'Apoio Operacional e Transporte de Doentes' },
+  TSDT: { codigo: 'TSDT', nomeCompleto: 'Técnico(a) Sup. Diagnóstico e Terapêutica', descricao: 'Técnicos de Radioterapia e Imagem' },
+  FIS: { codigo: 'FIS', nomeCompleto: 'Físico(a) Médico(a)', descricao: 'Física Médica e Dosimetria' },
+  AT: { codigo: 'AT', nomeCompleto: 'Assistente Técnico(a)', descricao: 'Secretariado Clínico e Apoio Administrativo' },
+  TAS: { codigo: 'TAS', nomeCompleto: 'Técnico(a) Auxiliar de Saúde', descricao: 'Apoio Operacional e Cuidados de Saúde' },
+  AO: { codigo: 'TAS', nomeCompleto: 'Técnico(a) Auxiliar de Saúde', descricao: 'Apoio Operacional e Cuidados de Saúde' },
 };
 
 export type SubtipoBurocracia = 
@@ -248,6 +249,9 @@ export interface FormacaoFutura {
   formato: 'Webinar' | 'Presencial' | 'Híbrido' | 'E-learning';
   ambito: 'Nacional' | 'Internacional';
   temaPrincipal: 
+    | 'Efeitos secundários de Radioterapia'
+    | 'Dosimetria'
+    | 'Comunicação ao doente oncológico'
     | 'Radioterapia' 
     | 'Oncologia' 
     | 'Cancro' 
@@ -264,7 +268,8 @@ export interface FormacaoFutura {
     | 'Burnout'
     | 'Acelerador linear'
     | 'Elaborar investigação'
-    | 'Elaborar artigos científicos';
+    | 'Elaborar artigos científicos'
+    | (string & {});
   descricao: string;
   destinatariosSugeridos: DestinatarioGrupo[];
   horasEstimadas?: number;

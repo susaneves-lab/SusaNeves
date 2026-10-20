@@ -107,7 +107,7 @@ export const DEFAULT_PLANO_ANUAL_2026: Array<{
     codigoPlano: 'PNF-26-10',
     designacao: 'Ergonomia e Movimentação Manual de Doentes na Radioterapia',
     categoria: 'Interna',
-    publicoAlvo: 'AO, TSDT, ENF',
+    publicoAlvo: 'TAS, TSDT, ENF',
     horasPrevistas: 4,
     prioridade: 'Normal'
   },

@@ -9,23 +9,22 @@ export const exportFormacoesToExcel = (
 ) => {
   const wb = XLSX.utils.book_new();
 
-  // 1. Tabela Principal de Formações (Estrutura idêntica à imagem 1 e 2)
+  // 1. Tabela Principal de Formações (Ordem exata das colunas da tabela de formação)
   const rowsFormacoes = formacoes.map((f) => ({
-    'Burocracia': f.burocracia ? 'SIM' : 'NÃO',
-    'Realizada': f.realizada ? 'SIM' : 'NÃO',
+    'Realiz.': f.realizada ? 'Sim' : 'Não',
     'Nome da Formação': f.nome,
-    'Tipo': f.categoria,
-    'Prioridade': f.prioridade || 'Média',
+    'Tipo / Categoria': f.categoria,
     'Destinatários': f.destinatarios.join(', '),
     'Data da Realização': f.data + (f.dataFim ? ` a ${f.dataFim}` : ''),
-    'Frequentada Colaborador RAD': f.frequentadaColaboradorRad ? 'Sim' : 'Não',
-    'Colaboradores Participantes': f.colaboradores.join(', '),
-    'Horas de Formação': f.horas,
-    'Código': f.codigo,
-    'Relevância': f.relevancia,
-    'Incluída no Plano de Necessidades': f.incluidaPlanoNecessidades,
+    'Freq. RAD': f.frequentadaColaboradorRad ? 'Sim' : 'Não',
+    'Horas (h)': f.horasTexto || `${f.horas}h`,
+    'Código Formação': f.codigo || '-',
+    'Relevância': f.relevancia || '-',
+    'No PNF': f.incluidaPlanoNecessidades || '-',
     'Certificado': f.certificado ? f.certificado.nomeFicheiro : 'Pendente',
-    'Observações': f.observacoes || ''
+    'Observações & Colaboradores': (f.colaboradores && f.colaboradores.length > 0)
+      ? `Colaboradores: ${f.colaboradores.join(', ')}${f.observacoes ? ` | ${f.observacoes}` : ''}`
+      : (f.observacoes || '-')
   }));
 
   const wsFormacoes = XLSX.utils.json_to_sheet(rowsFormacoes);
@@ -70,11 +69,11 @@ export const exportFormacoesToExcel = (
   XLSX.utils.book_append_sheet(wb, wsCategorias, 'Resumo por Categoria');
 
   // 4. Resumo por Tipo de Colaborador (Destinatários)
-  const grupos: DestinatarioGrupo[] = ['MR', 'ENF', 'TSDT', 'FIS', 'AT', 'AO'];
+  const grupos: DestinatarioGrupo[] = ['AT', 'ENF', 'FIS', 'MR', 'TAS', 'TSDT'];
   const rowsGrupos = grupos.map((grp) => {
-    const grupoFormacoes = formacoes.filter(f => f.destinatarios.includes(grp));
+    const grupoFormacoes = formacoes.filter(f => f.destinatarios.includes(grp) || (grp === 'TAS' && f.destinatarios.includes('AO' as any)));
     const totalHoras = grupoFormacoes.reduce((acc, curr) => acc + curr.horas, 0);
-    const colabsDoGrupo = colaboradores.filter(c => c.categoriaProfissional === grp);
+    const colabsDoGrupo = colaboradores.filter(c => c.categoriaProfissional === grp || (grp === 'TAS' && c.categoriaProfissional === 'AO'));
     
     // Contabilização de horas dos colaboradores desse grupo
     const totalHorasIndividualGrupo = colabsDoGrupo.reduce((acc, colab) => {

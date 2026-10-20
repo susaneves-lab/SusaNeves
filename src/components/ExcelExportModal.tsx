@@ -35,24 +35,29 @@ export const ExcelExportModal: React.FC<ExcelExportModalProps> = ({
   colaboradores,
   anoAtual,
 }) => {
-  // Lista de colunas configuráveis
+  // Lista de colunas configuráveis (na ordem exata da tabela de formação)
   const COLUNAS_DISPONIVEIS: ColunaExportacao[] = [
-    { id: 'burocracia', label: 'Burocracia (Validada / Pendente)', padrao: true, obterValor: (f) => f.burocracia ? 'SIM' : 'NÃO' },
-    { id: 'realizada', label: 'Realizada (Validada / Pendente)', padrao: true, obterValor: (f) => f.realizada ? 'SIM' : 'NÃO' },
+    { id: 'realizada', label: 'Realiz. (Formação Realizada)', padrao: true, obterValor: (f) => f.realizada ? 'Sim' : 'Não' },
     { id: 'nome', label: 'Nome da Formação', padrao: true, obterValor: (f) => f.nome },
-    { id: 'categoria', label: 'Tipo / Categoria (Externa/Interna/Enf/ACAF)', padrao: true, obterValor: (f) => f.categoria },
-    { id: 'prioridade', label: 'Nível de Prioridade (Alta, Média, Baixa)', padrao: true, obterValor: (f) => f.prioridade || 'Média' },
-    { id: 'subtipo', label: 'Subtipo Burocracia Matriz', padrao: false, obterValor: (f) => f.subtipoBurocracia || 'Padrão' },
-    { id: 'destinatarios', label: 'Destinatários (MR, ENF, TSDT, FIS, AT, AO)', padrao: true, obterValor: (f) => f.destinatarios.join(', ') },
+    { id: 'categoria', label: 'Tipo / Categoria', padrao: true, obterValor: (f) => f.categoria },
+    { id: 'destinatarios', label: 'Destinatários', padrao: true, obterValor: (f) => f.destinatarios.join(', ') },
     { id: 'data', label: 'Data da Realização', padrao: true, obterValor: (f) => f.data + (f.dataFim ? ` a ${f.dataFim}` : '') },
-    { id: 'frequentadaRad', label: 'Frequentada por Colaborador RAD', padrao: true, obterValor: (f) => f.frequentadaColaboradorRad ? 'Sim' : 'Não' },
-    { id: 'colaboradores', label: 'Colaboradores Participantes (Siglas)', padrao: true, obterValor: (f) => f.colaboradores.join(', ') },
-    { id: 'horas', label: 'Duração em Horas', padrao: true, obterValor: (f) => f.horas },
-    { id: 'codigo', label: 'Código da Formação', padrao: true, obterValor: (f) => f.codigo },
-    { id: 'relevancia', label: 'Relevância (Sim/Não)', padrao: true, obterValor: (f) => f.relevancia },
-    { id: 'pnf', label: 'Incluída no Plano de Necessidades (PNF)', padrao: true, obterValor: (f) => f.incluidaPlanoNecessidades },
-    { id: 'certificado', label: 'Certificado Anexo / Estado', padrao: true, obterValor: (f) => f.certificado ? f.certificado.nomeFicheiro : 'Pendente' },
-    { id: 'observacoes', label: 'Observações do Registo', padrao: true, obterValor: (f) => f.observacoes || '' },
+    { id: 'frequentadaRad', label: 'Freq. RAD', padrao: true, obterValor: (f) => f.frequentadaColaboradorRad ? 'Sim' : 'Não' },
+    { id: 'horas', label: 'Horas (h)', padrao: true, obterValor: (f) => f.horasTexto || f.horas },
+    { id: 'codigo', label: 'Código Formação', padrao: true, obterValor: (f) => f.codigo || '-' },
+    { id: 'relevancia', label: 'Relevância', padrao: true, obterValor: (f) => f.relevancia || '-' },
+    { id: 'pnf', label: 'No PNF', padrao: true, obterValor: (f) => f.incluidaPlanoNecessidades || '-' },
+    { id: 'certificado', label: 'Certificado', padrao: true, obterValor: (f) => f.certificado ? f.certificado.nomeFicheiro : 'Pendente' },
+    { id: 'observacoes', label: 'Observações & Colaboradores', padrao: true, obterValor: (f) => {
+        const parts: string[] = [];
+        if (f.colaboradores && f.colaboradores.length > 0) parts.push(`Colaboradores: ${f.colaboradores.join(', ')}`);
+        if (f.observacoes) parts.push(f.observacoes);
+        return parts.join(' | ') || '-';
+      }
+    },
+    { id: 'burocracia', label: 'Burocracia (Validada / Pendente)', padrao: false, obterValor: (f) => f.burocracia ? 'SIM' : 'NÃO' },
+    { id: 'prioridade', label: 'Nível de Prioridade (Alta, Média, Baixa)', padrao: false, obterValor: (f) => f.prioridade || 'Média' },
+    { id: 'subtipo', label: 'Subtipo Burocracia Matriz', padrao: false, obterValor: (f) => f.subtipoBurocracia || 'Padrão' },
     { id: 'dataRegisto', label: 'Data de Registo no Sistema', padrao: false, obterValor: (f) => f.dataRegisto || '' }
   ];
 
@@ -150,10 +155,10 @@ export const ExcelExportModal: React.FC<ExcelExportModalProps> = ({
 
     // 3. Folha de Totais por Grupo Profissional
     if (incluirFolhaGrupos) {
-      const grupos: DestinatarioGrupo[] = ['TSDT', 'ENF', 'MR', 'FIS', 'AT', 'AO'];
+      const grupos: DestinatarioGrupo[] = ['AT', 'ENF', 'FIS', 'MR', 'TAS', 'TSDT'];
       const rowsGrupos = grupos.map(grp => {
-        const colabsDoGrupo = colaboradores.filter(c => c.categoriaProfissional === grp);
-        const acoesDestinadas = formacoesDoAno.filter(f => f.destinatarios.includes(grp));
+        const colabsDoGrupo = colaboradores.filter(c => c.categoriaProfissional === grp || (grp === 'TAS' && c.categoriaProfissional === 'AO'));
+        const acoesDestinadas = formacoesDoAno.filter(f => f.destinatarios.includes(grp) || (grp === 'TAS' && f.destinatarios.includes('AO' as any)));
         const totalHorasEquipa = colabsDoGrupo.reduce((acc, c) => {
           const h = formacoesDoAno.filter(f => f.colaboradores.includes(c.sigla)).reduce((sum, f) => sum + f.horas, 0);
           return acc + h;
@@ -348,7 +353,7 @@ export const ExcelExportModal: React.FC<ExcelExportModalProps> = ({
                   className="rounded text-emerald-600 focus:ring-emerald-500"
                 />
                 <span className="text-slate-800 font-medium">
-                  Folha: Resumo por Grupo Profissional (TSDT, ENF, MR, FIS, AT, AO)
+                  Folha: Resumo por Grupo Profissional (TSDT, ENF, MR, FIS, AT, TAS)
                 </span>
               </label>
 
