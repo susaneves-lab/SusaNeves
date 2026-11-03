@@ -11,6 +11,10 @@ import {
 } from '../types';
 import { MonthlyEvolutionBarChart } from './MonthlyEvolutionBarChart';
 import { printElementOnDevicePrinter } from '../utils/printUtils';
+import {
+  INITIAL_COLABORADORES_ATE_MARCO_2026,
+  obterParticipantesDaFormacao
+} from '../data/collaborators';
 import { 
   Printer, 
   X, 
@@ -34,6 +38,7 @@ export interface PerformanceReportPdfModalProps {
   onClose: () => void;
   formacoes: Formacao[];
   colaboradores: Colaborador[];
+  colaboradoresAteMarco2026?: Colaborador[];
   anoAtual: number;
   metaAtual: MetaAno;
   tipoRelatorioInicial?: 'desempenho' | 'mensal' | 'trimestral' | 'anual' | 'acumulativo';
@@ -46,6 +51,7 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
   onClose,
   formacoes,
   colaboradores,
+  colaboradoresAteMarco2026 = INITIAL_COLABORADORES_ATE_MARCO_2026,
   anoAtual,
   metaAtual,
   tipoRelatorioInicial = 'desempenho',
@@ -101,10 +107,10 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
       const acoesGrupo = formacoesDoAno.filter(f => f.destinatarios.includes(grp) || (grp === 'TAS' && f.destinatarios.includes('AO' as any)));
       
       const horasGrupo = formacoesDoAno.reduce((sum, f) => {
-        const temColabDoGrupo = f.colaboradores?.some(sigla => {
-          const c = colaboradores.find(col => col.sigla === sigla);
-          return c?.categoriaProfissional === grp || (grp === 'TAS' && c?.categoriaProfissional === 'AO');
-        });
+        const participantes = obterParticipantesDaFormacao(f, colaboradores, colaboradoresAteMarco2026);
+        const temColabDoGrupo = participantes.some(c =>
+          c.categoriaProfissional === grp || (grp === 'TAS' && c.categoriaProfissional === 'AO')
+        );
         return temColabDoGrupo ? sum + f.horas : sum;
       }, 0);
 
@@ -121,7 +127,7 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
         taxaCumprimento
       };
     });
-  }, [formacoesDoAno, colaboradores, metaAtual]);
+  }, [formacoesDoAno, colaboradores, colaboradoresAteMarco2026, metaAtual]);
 
   // Repartição por Tipo de Formação
   const tipos: FormacaoCategoria[] = ['Externa', 'Interna', 'Enfermagem', 'ACAF'];

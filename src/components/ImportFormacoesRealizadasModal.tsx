@@ -18,11 +18,18 @@ import {
   Tag
 } from 'lucide-react';
 
+import {
+  INITIAL_COLABORADORES_ATE_MARCO_2026,
+  obterColaboradoresPorData,
+  normalizarSiglasFormacao
+} from '../data/collaborators';
+
 interface ImportFormacoesRealizadasModalProps {
   isOpen: boolean;
   onClose: () => void;
   anoAtual: number;
   colaboradores: Colaborador[];
+  colaboradoresAteMarco2026?: Colaborador[];
   onImportarFormacoes: (novasFormacoes: Formacao[]) => void;
 }
 
@@ -49,6 +56,7 @@ export const ImportFormacoesRealizadasModal: React.FC<ImportFormacoesRealizadasM
   onClose,
   anoAtual,
   colaboradores,
+  colaboradoresAteMarco2026 = INITIAL_COLABORADORES_ATE_MARCO_2026,
   onImportarFormacoes
 }) => {
   const [ficheiroCarregado, setFicheiroCarregado] = useState<File | null>(null);
@@ -67,9 +75,10 @@ export const ImportFormacoesRealizadasModal: React.FC<ImportFormacoesRealizadasM
   // Extensões suportadas conforme requisito 5: PDF, JPEG, PNG, DOC/DOCX
   const extensoesPermitidas = ['.pdf', '.jpeg', '.jpg', '.png', '.doc', '.docx'];
 
-  const colaboradoresOrdenados = [...colaboradores].sort((a, b) => 
-    a.nome.localeCompare(b.nome, 'pt', { sensitivity: 'base' })
-  );
+  const obterListaOrdenadaPorData = (dataItem: string) =>
+    [...obterColaboradoresPorData(dataItem, anoAtual, colaboradores, colaboradoresAteMarco2026)].sort((a, b) =>
+      a.sigla.localeCompare(b.sigla, 'pt', { sensitivity: 'base', numeric: true })
+    );
 
   const handleSelecionarFicheiro = (e: React.ChangeEvent<HTMLInputElement>) => {
     setErroUpload(null);
@@ -105,16 +114,26 @@ export const ImportFormacoesRealizadasModal: React.FC<ImportFormacoesRealizadasM
       setTimeout(() => {
         setProgresso(85);
 
+        const data1 = `${anoAtual}-03-12`;
+        const data2 = `${anoAtual}-04-05`;
+        const data3 = `${anoAtual}-02-18`;
+        const data4 = `${anoAtual}-05-20`;
+
+        const lista1 = obterListaOrdenadaPorData(data1);
+        const lista2 = obterListaOrdenadaPorData(data2);
+        const lista3 = obterListaOrdenadaPorData(data3);
+        const lista4 = obterListaOrdenadaPorData(data4);
+
         // Gera itens extraídos com base no ficheiro e padrões hospitalares
         const itensGerados: ItemImportadoExtracao[] = [
           {
             id: `imp-${Date.now()}-1`,
             nome: 'Boas Práticas e Segurança na Administração de Citostáticos e Radiossensibilizantes',
             categoria: 'Interna',
-            data: `${anoAtual}-03-12`,
+            data: data1,
             horas: 6,
             codigo: `RAD-${anoAtual}-EXT-01`,
-            colaboradores: colaboradoresOrdenados.slice(0, 3).map(c => c.sigla),
+            colaboradores: lista1.slice(0, 3).map(c => c.sigla).sort((a, b) => a.localeCompare(b, 'pt', { sensitivity: 'base', numeric: true })),
             destinatarios: ['ENF', 'TSDT'],
             frequentadaColaboradorRad: true,
             incluidaPlanoNecessidades: 'Sim',
@@ -127,10 +146,10 @@ export const ImportFormacoesRealizadasModal: React.FC<ImportFormacoesRealizadasM
             id: `imp-${Date.now()}-2`,
             nome: 'Controlo de Qualidade Diário e Calibração de Aceleradores Lineares (Linac TrueBeam)',
             categoria: 'Externa',
-            data: `${anoAtual}-04-05`,
+            data: data2,
             horas: 14,
             codigo: `RAD-${anoAtual}-EXT-02`,
-            colaboradores: colaboradoresOrdenados.filter(c => c.categoriaProfissional === 'FIS' || c.categoriaProfissional === 'TSDT').slice(0, 2).map(c => c.sigla),
+            colaboradores: lista2.filter(c => c.categoriaProfissional === 'FIS' || c.categoriaProfissional === 'TSDT').slice(0, 2).map(c => c.sigla).sort((a, b) => a.localeCompare(b, 'pt', { sensitivity: 'base', numeric: true })),
             destinatarios: ['FIS', 'TSDT'],
             frequentadaColaboradorRad: true,
             incluidaPlanoNecessidades: 'Sim',
@@ -143,10 +162,10 @@ export const ImportFormacoesRealizadasModal: React.FC<ImportFormacoesRealizadasM
             id: `imp-${Date.now()}-3`,
             nome: 'ReCAP: Orientação para a Mudança e Inovação - MODERNA 3',
             categoria: 'ACAF',
-            data: `${anoAtual}-02-18`,
+            data: data3,
             horas: 7,
             codigo: 'ReCAP-SIADAP-Mudanca-3',
-            colaboradores: colaboradoresOrdenados.slice(2, 5).map(c => c.sigla),
+            colaboradores: lista3.slice(2, 5).map(c => c.sigla).sort((a, b) => a.localeCompare(b, 'pt', { sensitivity: 'base', numeric: true })),
             destinatarios: ['TSDT', 'AT'],
             frequentadaColaboradorRad: true,
             incluidaPlanoNecessidades: 'Sim',
@@ -159,10 +178,10 @@ export const ImportFormacoesRealizadasModal: React.FC<ImportFormacoesRealizadasM
             id: `imp-${Date.now()}-4`,
             nome: 'Gestão da Dor Oncológica e Toxicidade Cutânea Aguda em Radioterapia Pélvica',
             categoria: 'Enfermagem',
-            data: `${anoAtual}-05-20`,
+            data: data4,
             horas: 8,
             codigo: `RAD-${anoAtual}-EXT-04`,
-            colaboradores: colaboradoresOrdenados.filter(c => c.categoriaProfissional === 'ENF').slice(0, 3).map(c => c.sigla),
+            colaboradores: lista4.filter(c => c.categoriaProfissional === 'ENF').slice(0, 3).map(c => c.sigla).sort((a, b) => a.localeCompare(b, 'pt', { sensitivity: 'base', numeric: true })),
             destinatarios: ['ENF', 'MR'],
             frequentadaColaboradorRad: true,
             incluidaPlanoNecessidades: 'Sim',
@@ -201,9 +220,24 @@ export const ImportFormacoesRealizadasModal: React.FC<ImportFormacoesRealizadasM
   };
 
   const handleAtualizarCampo = (id: string, campo: keyof ItemImportadoExtracao, valor: any) => {
-    setItensExtraidos(prev => prev.map(item => 
-      item.id === id ? { ...item, [campo]: valor } : item
-    ));
+    setItensExtraidos(prev => prev.map(item => {
+      if (item.id !== id) return item;
+      const atualizado = { ...item, [campo]: valor };
+      if (campo === 'data') {
+        const siglasNormalizadas = normalizarSiglasFormacao(
+          {
+            ano: anoAtual,
+            data: String(valor || ''),
+            frequentadaColaboradorRad: atualizado.frequentadaColaboradorRad,
+            colaboradores: atualizado.colaboradores
+          },
+          colaboradores,
+          colaboradoresAteMarco2026
+        );
+        return { ...atualizado, colaboradores: siglasNormalizadas };
+      }
+      return atualizado;
+    }));
   };
 
   const handleEliminarItem = (id: string) => {
@@ -213,30 +247,44 @@ export const ImportFormacoesRealizadasModal: React.FC<ImportFormacoesRealizadasM
   const handleConfirmarImportacao = () => {
     const selecionados = itensExtraidos.filter(i => i.selecionado);
     if (selecionados.length === 0) {
-      alert('Por favor selecione pelo menos uma formação para importar.');
+      setErroUpload('Por favor selecione pelo menos uma formação para importar.');
       return;
     }
 
-    const novasFormacoes: Formacao[] = selecionados.map(item => ({
-      id: `form-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      ano: anoAtual,
-      nome: item.nome.trim(),
-      categoria: item.categoria,
-      destinatarios: item.destinatarios.length > 0 ? item.destinatarios : ['TSDT'],
-      data: item.data || `${anoAtual}-01-01`,
-      dataFim: item.dataFim,
-      frequentadaColaboradorRad: item.frequentadaColaboradorRad,
-      colaboradores: item.colaboradores,
-      horas: Number(item.horas) || 1,
-      codigo: item.codigo.trim() || `RAD-${anoAtual}`,
-      relevancia: item.relevancia,
-      incluidaPlanoNecessidades: item.incluidaPlanoNecessidades,
-      realizada: true, // Formações importadas de lista de realizadas
-      burocracia: false,
-      observacoes: item.observacoes,
-      entidadeFormadora: item.entidadeFormadora,
-      dataRegisto: new Date().toISOString()
-    }));
+    const novasFormacoes: Formacao[] = selecionados.map(item => {
+      const dataFinal = item.data || `${anoAtual}-01-01`;
+      const siglasNormalizadas = normalizarSiglasFormacao(
+        {
+          ano: anoAtual,
+          data: dataFinal,
+          frequentadaColaboradorRad: item.frequentadaColaboradorRad,
+          colaboradores: item.colaboradores
+        },
+        colaboradores,
+        colaboradoresAteMarco2026
+      );
+
+      return {
+        id: `form-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        ano: anoAtual,
+        nome: item.nome.trim(),
+        categoria: item.categoria,
+        destinatarios: item.destinatarios.length > 0 ? item.destinatarios : ['TSDT'],
+        data: dataFinal,
+        dataFim: item.dataFim,
+        frequentadaColaboradorRad: item.frequentadaColaboradorRad,
+        colaboradores: siglasNormalizadas,
+        horas: Number(item.horas) || 1,
+        codigo: item.codigo.trim() || `RAD-${anoAtual}`,
+        relevancia: item.relevancia,
+        incluidaPlanoNecessidades: item.incluidaPlanoNecessidades,
+        realizada: true, // Formações importadas de lista de realizadas
+        burocracia: false,
+        observacoes: item.observacoes,
+        entidadeFormadora: item.entidadeFormadora,
+        dataRegisto: new Date().toISOString()
+      };
+    });
 
     onImportarFormacoes(novasFormacoes);
     onClose();

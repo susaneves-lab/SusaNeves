@@ -39,10 +39,16 @@ import {
 } from 'lucide-react';
 import { exportColaboradorPerfilToPdf } from '../utils/exportUtils';
 import { printElementOnDevicePrinter } from '../utils/printUtils';
+import {
+  INITIAL_COLABORADORES_ATE_MARCO_2026,
+  colaboradorParticipouNaFormacao,
+  obterSiglaAteMarco2026
+} from '../data/collaborators';
 
 interface AdminDashboardProps {
   formacoes: Formacao[];
   colaboradores: Colaborador[];
+  colaboradoresAteMarco2026?: Colaborador[];
   anoAtual: number;
   metaAtual: MetaAno;
   historicos: HistoricoAno[];
@@ -52,6 +58,7 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   formacoes,
   colaboradores,
+  colaboradoresAteMarco2026 = INITIAL_COLABORADORES_ATE_MARCO_2026,
   anoAtual,
   metaAtual,
   historicos,
@@ -181,7 +188,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       
       const horasAcumuladas = colabs.reduce((acc, c) => {
         const horasC = formacoesDoAno
-          .filter(f => f.colaboradores.includes(c.sigla))
+          .filter(f => colaboradorParticipouNaFormacao(c, f, colaboradores, colaboradoresAteMarco2026))
           .reduce((sum, f) => sum + f.horas, 0);
         return acc + horasC;
       }, 0);
@@ -197,7 +204,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         mediaHoras
       };
     });
-  }, [colaboradores, formacoesDoAno]);
+  }, [colaboradores, colaboradoresAteMarco2026, formacoesDoAno]);
 
   // Evolução individual de cada colaborador
   const evolucaoColaboradores = useMemo(() => {
@@ -209,12 +216,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
         if (buscaColaborador.trim() !== '') {
           const q = buscaColaborador.toLowerCase();
-          return c.nome.toLowerCase().includes(q) || c.sigla.toLowerCase().includes(q) || c.cargo.toLowerCase().includes(q);
+          const siglaMarco = anoAtual === 2026 ? obterSiglaAteMarco2026(c, colaboradoresAteMarco2026) : null;
+          return (
+            c.nome.toLowerCase().includes(q) ||
+            c.sigla.toLowerCase().includes(q) ||
+            (siglaMarco ? siglaMarco.toLowerCase().includes(q) : false) ||
+            c.cargo.toLowerCase().includes(q)
+          );
         }
         return true;
       })
       .map(c => {
-        const participacoes = formacoesDoAno.filter(f => f.colaboradores.includes(c.sigla));
+        const participacoes = formacoesDoAno.filter(f =>
+          colaboradorParticipouNaFormacao(c, f, colaboradores, colaboradoresAteMarco2026)
+        );
         const totalHoras = participacoes.reduce((sum, f) => sum + f.horas, 0);
         const meta = c.metaHorasAnual || metaAtual?.metaHorasPorColaborador || 35;
         const metaQtd = c.metaQtdFormacoesAnual || metaAtual?.metaQtdFormacoesPorColaborador || 3;
@@ -238,7 +253,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
         return b.totalHoras - a.totalHoras;
       });
-  }, [colaboradores, formacoesDoAno, filtroGrupo, buscaColaborador, metaAtual, ordenacaoColabs]);
+  }, [colaboradores, colaboradoresAteMarco2026, anoAtual, formacoesDoAno, filtroGrupo, buscaColaborador, metaAtual, ordenacaoColabs]);
 
   // Lista de colaboradores filtrada para o seletor do Perfil Individual (ordenada alfabeticamente pela Sigla - Requisito 2)
   const colaboradoresFiltradosPerfil = useMemo(() => {
@@ -250,12 +265,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
         if (buscaPerfil.trim() !== '') {
           const q = buscaPerfil.toLowerCase();
-          return c.nome.toLowerCase().includes(q) || c.sigla.toLowerCase().includes(q);
+          const siglaMarco = anoAtual === 2026 ? obterSiglaAteMarco2026(c, colaboradoresAteMarco2026) : null;
+          return (
+            c.nome.toLowerCase().includes(q) ||
+            c.sigla.toLowerCase().includes(q) ||
+            (siglaMarco ? siglaMarco.toLowerCase().includes(q) : false)
+          );
         }
         return true;
       })
       .sort((a, b) => a.sigla.localeCompare(b.sigla, 'pt', { sensitivity: 'base' }));
-  }, [colaboradores, filtroGrupoPerfil, buscaPerfil]);
+  }, [colaboradores, colaboradoresAteMarco2026, anoAtual, filtroGrupoPerfil, buscaPerfil]);
 
   // Colaborador ativo no Perfil Individual
   const colaboradorSelecionado = useMemo(() => {
@@ -267,8 +287,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Formações do colaborador selecionado no ano corrente
   const formacoesDoColaborador = useMemo(() => {
     if (!colaboradorSelecionado) return [];
-    return formacoesDoAno.filter(f => f.colaboradores.includes(colaboradorSelecionado.sigla));
-  }, [formacoesDoAno, colaboradorSelecionado]);
+    return formacoesDoAno.filter(f =>
+      colaboradorParticipouNaFormacao(colaboradorSelecionado, f, colaboradores, colaboradoresAteMarco2026)
+    );
+  }, [formacoesDoAno, colaboradorSelecionado, colaboradores, colaboradoresAteMarco2026]);
 
   // Métricas do perfil individual e percentagens de cumprimento
   const metricasPerfilIndividual = useMemo(() => {
@@ -955,10 +977,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 const atingiuHoras = c.totalHoras >= c.meta;
                 const atingiuQtd = c.totalFormacoes >= c.metaQtd;
                 const atingiuAmbos = atingiuHoras && atingiuQtd;
+                const siglaMarco = anoAtual === 2026 ? obterSiglaAteMarco2026(c, colaboradoresAteMarco2026) : null;
                 return (
                   <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-2.5 px-3 font-mono font-bold text-teal-800">
-                      {c.sigla}
+                    <td className="py-2.5 px-3 font-mono font-bold text-teal-800 whitespace-nowrap">
+                      <span>{c.sigla}</span>
+                      {siglaMarco && siglaMarco !== c.sigla && (
+                        <span className="ml-1.5 text-[10px] font-normal text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded" title="Sigla utilizada até 03/03/2026">
+                          até 03/03: {siglaMarco}
+                        </span>
+                      )}
                     </td>
                     <td className="py-2.5 px-3 font-medium text-slate-900">
                       <button
@@ -1188,11 +1216,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               className="w-full py-1.5 px-3 text-xs bg-teal-50/70 border border-teal-300 rounded-md font-semibold text-teal-950 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
               title="Selecionar colaborador (Siglas em ordem alfabética)"
             >
-              {colaboradoresFiltradosPerfil.map(c => (
-                <option key={c.id} value={c.id}>
-                  [{c.sigla}] {c.nome} ({c.categoriaProfissional} - {c.cargo})
-                </option>
-              ))}
+              {colaboradoresFiltradosPerfil.map(c => {
+                const siglaMarco = anoAtual === 2026 ? obterSiglaAteMarco2026(c, colaboradoresAteMarco2026) : null;
+                const labelSigla = siglaMarco && siglaMarco !== c.sigla
+                  ? `[${c.sigla} | até 03/03: ${siglaMarco}]`
+                  : `[${c.sigla}]`;
+                return (
+                  <option key={c.id} value={c.id}>
+                    {labelSigla} {c.nome} ({c.categoriaProfissional} - {c.cargo})
+                  </option>
+                );
+              })}
             </select>
           </div>
         </div>
@@ -1218,6 +1252,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <span className="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-teal-100 text-teal-900 border border-teal-200">
                       Sigla: {colaboradorSelecionado.sigla}
                     </span>
+                    {(() => {
+                      const siglaMarcoSel = anoAtual === 2026 ? obterSiglaAteMarco2026(colaboradorSelecionado, colaboradoresAteMarco2026) : null;
+                      return siglaMarcoSel && siglaMarcoSel !== colaboradorSelecionado.sigla ? (
+                        <span className="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-amber-50 text-amber-800 border border-amber-200">
+                          Sigla até 03/03/2026: {siglaMarcoSel}
+                        </span>
+                      ) : null;
+                    })()}
                     <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">
                       {colaboradorSelecionado.categoriaProfissional}
                     </span>

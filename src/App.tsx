@@ -15,6 +15,8 @@ import {
   saveStoredFormacoes, 
   getStoredColaboradores, 
   saveStoredColaboradores,
+  getStoredColaboradoresAteMarco2026,
+  saveStoredColaboradoresAteMarco2026,
   getStoredCertificacoes,
   saveStoredCertificacoes,
   getStoredMetas,
@@ -79,6 +81,7 @@ export default function App() {
   const [anoAtual, setAnoAtual] = useState<number>(getStoredCurrentYear());
   const [formacoes, setFormacoes] = useState<Formacao[]>(getStoredFormacoes());
   const [colaboradores, setColaboradores] = useState<Colaborador[]>(getStoredColaboradores());
+  const [colaboradoresAteMarco2026, setColaboradoresAteMarco2026] = useState<Colaborador[]>(getStoredColaboradoresAteMarco2026());
   const [certificacoes, setCertificacoes] = useState<CertificacaoObrigatoria[]>(getStoredCertificacoes());
   const [metas, setMetas] = useState<Record<number, MetaAno>>(getStoredMetas());
   const [historicos, setHistoricos] = useState<HistoricoAno[]>(getStoredHistoricos());
@@ -154,6 +157,10 @@ export default function App() {
   }, [colaboradores]);
 
   useEffect(() => {
+    saveStoredColaboradoresAteMarco2026(colaboradoresAteMarco2026);
+  }, [colaboradoresAteMarco2026]);
+
+  useEffect(() => {
     saveStoredCertificacoes(certificacoes);
   }, [certificacoes]);
 
@@ -200,6 +207,7 @@ export default function App() {
         generateFullBackupDownload({
           formacoes,
           colaboradores,
+          colaboradoresAteMarco2026,
           certificacoes,
           metas,
           historicos,
@@ -421,6 +429,7 @@ export default function App() {
     generateFullBackupDownload({
       formacoes,
       colaboradores,
+      colaboradoresAteMarco2026,
       certificacoes,
       metas,
       historicos,
@@ -590,6 +599,7 @@ export default function App() {
           <TrainingTable
             formacoes={formacoes}
             colaboradores={colaboradores}
+            colaboradoresAteMarco2026={colaboradoresAteMarco2026}
             anoAtual={anoAtual}
             configuracoes={configuracoes}
             onEdit={(f) => {
@@ -625,6 +635,7 @@ export default function App() {
           <AdminDashboard
             formacoes={formacoes}
             colaboradores={colaboradores}
+            colaboradoresAteMarco2026={colaboradoresAteMarco2026}
             anoAtual={anoAtual}
             metaAtual={metaDoAnoAtual}
             historicos={historicos}
@@ -636,6 +647,7 @@ export default function App() {
           <BureaucracyMatrixView
             formacoes={formacoes}
             colaboradores={colaboradores}
+            colaboradoresAteMarco2026={colaboradoresAteMarco2026}
             anoAtual={anoAtual}
             configuracoes={configuracoes}
             onAtualizarFormacao={handleUpdateFormacaoDireta}
@@ -661,6 +673,7 @@ export default function App() {
           <ReportsView
             formacoes={formacoes}
             colaboradores={colaboradores}
+            colaboradoresAteMarco2026={colaboradoresAteMarco2026}
             anoAtual={anoAtual}
             metaAtual={metaDoAnoAtual}
           />
@@ -722,6 +735,7 @@ export default function App() {
           formacaoToEdit={formacaoToEdit}
           anoAtual={anoAtual}
           colaboradores={colaboradores}
+          colaboradoresAteMarco2026={colaboradoresAteMarco2026}
         />
       )}
 
@@ -742,6 +756,7 @@ export default function App() {
           onClose={() => setIsImportRealizadasOpen(false)}
           anoAtual={anoAtual}
           colaboradores={colaboradores}
+          colaboradoresAteMarco2026={colaboradoresAteMarco2026}
           onImportarFormacoes={handleImportarFormacoesRealizadas}
         />
       )}
@@ -752,6 +767,7 @@ export default function App() {
           onClose={() => setIsExcelExportOpen(false)}
           formacoes={formacoes}
           colaboradores={colaboradores}
+          colaboradoresAteMarco2026={colaboradoresAteMarco2026}
           anoAtual={anoAtual}
         />
       )}
@@ -765,6 +781,7 @@ export default function App() {
           }}
           formacao={formacaoParaEmail}
           colaboradores={colaboradores}
+          colaboradoresAteMarco2026={colaboradoresAteMarco2026}
           onMarcarEmailEnviado={handleMarcarEmailEnviado}
         />
       )}
@@ -777,6 +794,11 @@ export default function App() {
           onSalvarColaboradores={(novosColabs) => {
             setColaboradores(novosColabs);
             showToast('Lista de colaboradores atualizada e verificada com sucesso.');
+          }}
+          colaboradoresAteMarco2026={colaboradoresAteMarco2026}
+          onSalvarColaboradoresAteMarco2026={(novosColabsMarco) => {
+            setColaboradoresAteMarco2026(novosColabsMarco);
+            showToast('Lista de colaboradores até 03/03/2026 atualizada com sucesso.');
           }}
           configuracoes={configuracoes}
           onSalvarConfiguracoes={(novasCfg) => {

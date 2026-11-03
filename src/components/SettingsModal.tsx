@@ -73,11 +73,15 @@ import {
   DispositivoSincronizado 
 } from '../utils/cloudSyncCrypto';
 
+import { INITIAL_COLABORADORES_ATE_MARCO_2026 } from '../data/collaborators';
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   colaboradores: Colaborador[];
   onSalvarColaboradores: (colabs: Colaborador[]) => void;
+  colaboradoresAteMarco2026?: Colaborador[];
+  onSalvarColaboradoresAteMarco2026?: (colabs: Colaborador[]) => void;
   configuracoes: ConfiguracoesApp;
   onSalvarConfiguracoes: (cfg: ConfiguracoesApp) => void;
   formacoes?: Formacao[];
@@ -90,6 +94,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   colaboradores,
   onSalvarColaboradores,
+  colaboradoresAteMarco2026 = INITIAL_COLABORADORES_ATE_MARCO_2026,
+  onSalvarColaboradoresAteMarco2026,
   configuracoes,
   onSalvarConfiguracoes,
   formacoes = [],
@@ -106,8 +112,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // 7. Palavra-passe & Acesso
   const [activeTab, setActiveTab] = useState<'metas' | 'colaboradores' | 'matriz' | 'recap' | 'notificacoes' | 'backup' | 'seguranca'>('metas');
   
-  // 1. LISTA LOCAL DE COLABORADORES
+  // 1. LISTA LOCAL DE COLABORADORES (Atual vs Lista até 03/03/2026 apenas em 2026)
   const [listaColabs, setListaColabs] = useState<Colaborador[]>([...colaboradores]);
+  const [listaColabsAteMarco, setListaColabsAteMarco] = useState<Colaborador[]>([...colaboradoresAteMarco2026]);
+  const [modoListaColaboradores, setModoListaColaboradores] = useState<'marco2026' | 'atual'>(
+    anoAtual === 2026 ? 'marco2026' : 'atual'
+  );
   const [buscaColab, setBuscaColab] = useState('');
   const [filtroGrupo, setFiltroGrupo] = useState('todos');
 
@@ -255,6 +265,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [dadosParaVerificar, setDadosParaVerificar] = useState<{
     tipo: 'editar_colaborador' | 'atualizar_metas' | 'alterar_password' | 'gravar_notificacoes' | 'editar_recap' | 'editar_matriz';
     colaborador?: Colaborador;
+    alvoLista?: 'atual' | 'marco2026';
     novaPasswordAlvo?: string;
     recapItem?: RecapCodigoInfo;
     matrizAlvo?: { subtipo: SubtipoBurocracia; chaveDoc: string; novoValor: 'sim' | 'opcional' | 'n.a.' };
@@ -263,8 +274,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   if (!isOpen) return null;
 
+  const isModoMarco2026 = anoAtual === 2026 && modoListaColaboradores === 'marco2026';
+  const listaAtivaColabs = isModoMarco2026 ? listaColabsAteMarco : listaColabs;
+
   // Filtragem e ordenação alfabética de TODOS os colaboradores (Requisito 4)
-  const colabsFiltrados = [...listaColabs]
+  const colabsFiltrados = [...listaAtivaColabs]
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt', { sensitivity: 'base' }))
     .filter(c => {
       if (filtroGrupo !== 'todos' && c.categoriaProfissional !== filtroGrupo) return false;
@@ -282,12 +296,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Iniciar verificação para colaborador
   const handleIniciarSalvarColaborador = (colab: Colaborador) => {
+    const alvoLista: 'atual' | 'marco2026' = isModoMarco2026 ? 'marco2026' : 'atual';
+    const descLista = alvoLista === 'marco2026'
+      ? 'lista exclusiva até 03/03/2026'
+      : 'lista atual de colaboradores';
     setDadosParaVerificar({
       tipo: 'editar_colaborador',
       colaborador: colab,
+      alvoLista,
       mensagem: isNovoColaborador
-        ? `Tem a certeza que deseja adicionar o colaborador ${colab.nome} (${colab.sigla}) à lista do serviço?`
-        : `Confirma a atualização dos dados do colaborador ${colab.nome} (${colab.sigla})?`
+        ? `Tem a certeza que deseja adicionar o colaborador ${colab.nome} (${colab.sigla}) à ${descLista}?`
+        : `Confirma a atualização dos dados do colaborador ${colab.nome} (${colab.sigla}) na ${descLista}?`
     });
     setJanelaVerificacaoAberta(true);
   };
@@ -476,17 +495,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     if (dadosParaVerificar.tipo === 'editar_colaborador' && dadosParaVerificar.colaborador) {
       const c = dadosParaVerificar.colaborador;
-      let novaLista: Colaborador[];
-      if (isNovoColaborador) {
-        novaLista = [c, ...listaColabs];
+      if (dadosParaVerificar.alvoLista === 'marco2026') {
+        const novaListaMarco = isNovoColaborador
+          ? [c, ...listaColabsAteMarco]
+          : listaColabsAteMarco.map(item => item.id === c.id ? c : item);
+        setListaColabsAteMarco(novaListaMarco);
+        onSalvarColaboradoresAteMarco2026?.(novaListaMarco);
+        setMensagemSucesso('Lista de colaboradores até 03/03/2026 atualizada com sucesso.');
       } else {
-        novaLista = listaColabs.map(item => item.id === c.id ? c : item);
+        const novaLista = isNovoColaborador
+          ? [c, ...listaColabs]
+          : listaColabs.map(item => item.id === c.id ? c : item);
+        setListaColabs(novaLista);
+        onSalvarColaboradores(novaLista);
+        setMensagemSucesso('Dados do colaborador atualizados e verificados com sucesso.');
       }
-      setListaColabs(novaLista);
-      onSalvarColaboradores(novaLista);
       setColaboradorEditando(null);
       setIsNovoColaborador(false);
-      setMensagemSucesso('Dados do colaborador atualizados e verificados com sucesso.');
       setTimeout(() => setMensagemSucesso(''), 3000);
     } 
     else if (dadosParaVerificar.tipo === 'editar_recap' && dadosParaVerificar.recapItem) {
@@ -1050,7 +1075,62 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* ============================================================== */}
           {activeTab === 'colaboradores' && (
             <div className="space-y-4">
-              
+              {anoAtual === 2026 ? (
+                <div className="bg-amber-50/70 border border-amber-200 rounded-lg p-3.5 space-y-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900">
+                        Listas de Siglas de Colaboradores do Ano 2026
+                      </h4>
+                      <p className="text-[11px] text-slate-600 mt-0.5">
+                        Apenas para <strong>2026</strong> existe uma lista específica em vigor até <strong>03/03/2026</strong> (inclusive). A partir de 04/03/2026 e para todos os restantes anos mantém-se a lista atual.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setModoListaColaboradores('marco2026')}
+                      className={`px-3 py-2 rounded-md border text-left transition-colors cursor-pointer ${
+                        isModoMarco2026
+                          ? 'bg-amber-600 text-white border-amber-700 shadow-2xs font-bold'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-50'
+                      }`}
+                    >
+                      <span className="text-xs block">
+                        Lista até 03/03/2026 ({listaColabsAteMarco.length} colaboradores)
+                      </span>
+                      <span className={`text-[10px] block mt-0.5 ${isModoMarco2026 ? 'text-amber-100' : 'text-slate-500'}`}>
+                        Exclusiva para formações de 01/01/2026 a 03/03/2026
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setModoListaColaboradores('atual')}
+                      className={`px-3 py-2 rounded-md border text-left transition-colors cursor-pointer ${
+                        !isModoMarco2026
+                          ? 'bg-teal-700 text-white border-teal-800 shadow-2xs font-bold'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-teal-50'
+                      }`}
+                    >
+                      <span className="text-xs block">
+                        Lista Atual ({listaColabs.length} colaboradores)
+                      </span>
+                      <span className={`text-[10px] block mt-0.5 ${!isModoMarco2026 ? 'text-teal-100' : 'text-slate-500'}`}>
+                        Em vigor após 03/03/2026 e em todos os restantes anos
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2.5 text-xs text-slate-600 flex items-center justify-between">
+                  <span>
+                    Exercício <strong className="text-slate-900">{anoAtual}</strong>: Em vigor a lista geral de colaboradores (<strong className="text-teal-800">{listaColabs.length} siglas</strong>).
+                  </span>
+                </div>
+              )}
+
               {/* Barra de Filtro e Adição */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
                 <div className="flex flex-1 items-center gap-2">
@@ -1083,7 +1163,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <button
                   onClick={() => {
                     setColaboradorEditando({
-                      id: `col-${Date.now()}`,
+                      id: isModoMarco2026 ? `col-m26-${Date.now()}` : `col-${Date.now()}`,
                       nome: '',
                       sigla: '',
                       numMecanografico: '',
@@ -1101,7 +1181,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-teal-700 hover:bg-teal-800 rounded-md shadow-xs transition-colors cursor-pointer whitespace-nowrap"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Novo Colaborador</span>
+                  <span>{isModoMarco2026 ? 'Novo na Lista até 03/03' : 'Novo Colaborador'}</span>
                 </button>
               </div>
 

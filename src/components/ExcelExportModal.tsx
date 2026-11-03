@@ -12,12 +12,17 @@ import {
   FileCheck2,
   Table
 } from 'lucide-react';
+import {
+  INITIAL_COLABORADORES_ATE_MARCO_2026,
+  colaboradorParticipouNaFormacao
+} from '../data/collaborators';
 
 interface ExcelExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   formacoes: Formacao[];
   colaboradores: Colaborador[];
+  colaboradoresAteMarco2026?: Colaborador[];
   anoAtual: number;
 }
 
@@ -33,6 +38,7 @@ export const ExcelExportModal: React.FC<ExcelExportModalProps> = ({
   onClose,
   formacoes,
   colaboradores,
+  colaboradoresAteMarco2026 = INITIAL_COLABORADORES_ATE_MARCO_2026,
   anoAtual,
 }) => {
   // Lista de colunas configuráveis (na ordem exata da tabela de formação)
@@ -132,7 +138,9 @@ export const ExcelExportModal: React.FC<ExcelExportModalProps> = ({
     // 2. Folha de Resumo de Horas por Colaborador
     if (incluirFolhaColaboradores) {
       const rowsColabs = colaboradores.map(c => {
-        const participacoes = formacoesDoAno.filter(f => f.colaboradores.includes(c.sigla));
+        const participacoes = formacoesDoAno.filter(f =>
+          colaboradorParticipouNaFormacao(c, f, colaboradores, colaboradoresAteMarco2026)
+        );
         const totalHoras = participacoes.reduce((sum, f) => sum + f.horas, 0);
         const meta = c.metaHorasAnual || 35;
         const perc = Math.round((totalHoras / meta) * 100);
@@ -160,7 +168,9 @@ export const ExcelExportModal: React.FC<ExcelExportModalProps> = ({
         const colabsDoGrupo = colaboradores.filter(c => c.categoriaProfissional === grp || (grp === 'TAS' && c.categoriaProfissional === 'AO'));
         const acoesDestinadas = formacoesDoAno.filter(f => f.destinatarios.includes(grp) || (grp === 'TAS' && f.destinatarios.includes('AO' as any)));
         const totalHorasEquipa = colabsDoGrupo.reduce((acc, c) => {
-          const h = formacoesDoAno.filter(f => f.colaboradores.includes(c.sigla)).reduce((sum, f) => sum + f.horas, 0);
+          const h = formacoesDoAno
+            .filter(f => colaboradorParticipouNaFormacao(c, f, colaboradores, colaboradoresAteMarco2026))
+            .reduce((sum, f) => sum + f.horas, 0);
           return acc + h;
         }, 0);
 

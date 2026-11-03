@@ -39,6 +39,13 @@ import {
 } from 'lucide-react';
 import { exportFormacoesToExcel } from '../utils/exportUtils';
 import { printElementOnDevicePrinter } from '../utils/printUtils';
+import {
+  INITIAL_COLABORADORES_ATE_MARCO_2026,
+  colaboradorParticipouNaFormacao,
+  encontrarColaboradorEquivalente,
+  obterParticipantesDaFormacao,
+  obterSiglaAteMarco2026
+} from '../data/collaborators';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -74,6 +81,7 @@ export const verificarBurocraciaCompleta = (formacao: Formacao, configuracoes?: 
 interface TrainingTableProps {
   formacoes: Formacao[];
   colaboradores: Colaborador[];
+  colaboradoresAteMarco2026?: Colaborador[];
   anoAtual: number;
   configuracoes?: ConfiguracoesApp;
   onEdit: (formacao: Formacao) => void;
@@ -93,6 +101,7 @@ interface TrainingTableProps {
 export const TrainingTable: React.FC<TrainingTableProps> = ({
   formacoes,
   colaboradores,
+  colaboradoresAteMarco2026 = INITIAL_COLABORADORES_ATE_MARCO_2026,
   anoAtual,
   configuracoes,
   onEdit,
@@ -381,10 +390,29 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
     return false;
   };
 
+  const opcoesColaboradoresFiltro = useMemo(() => {
+    const base = [...colaboradores];
+    if (anoAtual === 2026) {
+      colaboradoresAteMarco2026.forEach(cm => {
+        if (!encontrarColaboradorEquivalente(cm, base)) {
+          base.push(cm);
+        }
+      });
+    }
+    return base.sort((a, b) =>
+      a.sigla.localeCompare(b.sigla, 'pt', { sensitivity: 'base', numeric: true })
+    );
+  }, [colaboradores, colaboradoresAteMarco2026, anoAtual]);
+
   // Filtragem e ordenação reativa das formações:
   // - Ordem cronológica para todas as formações exceto formações ReCap
   // - Formações ReCap organizadas alfabeticamente e no final de todas as formações realizadas
   const filteredFormacoes = useMemo(() => {
+    const colabFiltroSelecionado =
+      selectedColaborador !== 'todos'
+        ? opcoesColaboradoresFiltro.find(c => c.id === selectedColaborador || c.sigla === selectedColaborador)
+        : undefined;
+
     const filtradas = formacoes.filter(f => {
       // Filtro de ano
       if (f.ano !== anoAtual) return false;
@@ -395,8 +423,20 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
         const matchesName = f.nome.toLowerCase().includes(query);
         const matchesCode = (f.codigo || '').toLowerCase().includes(query);
         const matchesObs = (f.observacoes || '').toLowerCase().includes(query);
-        const matchesColab = f.colaboradores.some(c => c.toLowerCase().includes(query));
-        if (!matchesName && !matchesCode && !matchesObs && !matchesColab) {
+        const matchesColabSigla = f.colaboradores.some(c => c.toLowerCase().includes(query));
+        const matchesColabResolvido = obterParticipantesDaFormacao(
+          f,
+          colaboradores,
+          colaboradoresAteMarco2026
+        ).some(p => {
+          const siglaMarco = f.ano === 2026 ? obterSiglaAteMarco2026(p, colaboradoresAteMarco2026) : null;
+          return (
+            p.nome.toLowerCase().includes(query) ||
+            p.sigla.toLowerCase().includes(query) ||
+            Boolean(siglaMarco && siglaMarco.toLowerCase().includes(query))
+          );
+        });
+        if (!matchesName && !matchesCode && !matchesObs && !matchesColabSigla && !matchesColabResolvido) {
           return false;
         }
       }
@@ -413,9 +453,15 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
         if (!matchesDest) return false;
       }
 
-      // Filtro de Colaborador
-      if (selectedColaborador !== 'todos' && !f.colaboradores.includes(selectedColaborador)) {
-        return false;
+      // Filtro de Colaborador (resolve ambas as listas em 2026 até/após 03-03-2026)
+      if (selectedColaborador !== 'todos') {
+        if (colabFiltroSelecionado) {
+          if (!colaboradorParticipouNaFormacao(colabFiltroSelecionado, f, colaboradores, colaboradoresAteMarco2026)) {
+            return false;
+          }
+        } else if (!f.colaboradores.includes(selectedColaborador)) {
+          return false;
+        }
       }
 
       // Filtro de PNF
@@ -454,7 +500,7 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
     });
 
     return [...normais, ...recaps];
-  }, [formacoes, anoAtual, searchTerm, selectedCategoria, selectedDestinatario, selectedColaborador, selectedPnf, selectedBurocracia, ordemCronologica, configuracoes]);
+  }, [formacoes, anoAtual, searchTerm, selectedCategoria, selectedDestinatario, selectedColaborador, selectedPnf, selectedBurocracia, ordemCronologica, configuracoes, colaboradores, colaboradoresAteMarco2026, opcoesColaboradoresFiltro]);
 
   // Indicadores rápidos
   const totalHorasFiltradas = useMemo(() => {
@@ -564,17 +610,22 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
             <select
               value={selectedColaborador}
               onChange={(e) => setSelectedColaborador(e.target.value)}
-              className="text-xs py-1.5 px-2 bg-slate-50 border border-slate-300 rounded-md text-slate-700 focus:ring-2 focus:ring-teal-500 focus:outline-hidden max-w-[140px]"
+              className="text-xs py-1.5 px-2 bg-slate-50 border border-slate-300 rounded-md text-slate-700 focus:ring-2 focus:ring-teal-500 focus:outline-hidden max-w-[175px]"
               title="Filtrar por Colaborador"
             >
               <option value="todos">Colaborador: Todos</option>
-              {[...colaboradores]
-                .sort((a, b) => a.sigla.localeCompare(b.sigla, 'pt', { sensitivity: 'base', numeric: true }))
-                .map(c => (
-                  <option key={c.id} value={c.sigla}>
-                    {c.sigla} - {c.nome}
+              {opcoesColaboradoresFiltro.map(c => {
+                const siglaMarco = anoAtual === 2026 ? obterSiglaAteMarco2026(c, colaboradoresAteMarco2026) : null;
+                const labelSigla =
+                  siglaMarco && siglaMarco !== c.sigla
+                    ? `${c.sigla} (até 03/03: ${siglaMarco})`
+                    : c.sigla;
+                return (
+                  <option key={c.id} value={c.id}>
+                    {labelSigla} - {c.nome}
                   </option>
-                ))}
+                );
+              })}
             </select>
 
             {/* PNF */}

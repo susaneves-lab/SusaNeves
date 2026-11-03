@@ -3,12 +3,17 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Formacao, Colaborador, FormacaoCategoria, DestinatarioGrupo, DESTINATARIOS_INFO } from '../types';
 import { printHtmlOnDevicePrinter } from './printUtils';
+import {
+  INITIAL_COLABORADORES_ATE_MARCO_2026,
+  colaboradorParticipouNaFormacao
+} from '../data/collaborators';
 
 export const exportFormacoesToExcel = (
   formacoes: Formacao[],
   colaboradores: Colaborador[],
   ano: number,
-  tituloPersonalizado?: string
+  tituloPersonalizado?: string,
+  colaboradoresAteMarco2026: Colaborador[] = INITIAL_COLABORADORES_ATE_MARCO_2026
 ) => {
   const wb = XLSX.utils.book_new();
 
@@ -35,7 +40,9 @@ export const exportFormacoesToExcel = (
 
   // 2. Resumo por Colaborador
   const rowsColabs = colaboradores.map((c) => {
-    const colabFormacoes = formacoes.filter(f => f.colaboradores.includes(c.sigla));
+    const colabFormacoes = formacoes.filter(f =>
+      colaboradorParticipouNaFormacao(c, f, colaboradores, colaboradoresAteMarco2026)
+    );
     const totalHoras = colabFormacoes.reduce((acc, curr) => acc + curr.horas, 0);
     const meta = c.metaHorasAnual || 35;
     const percMeta = Math.min(100, Math.round((totalHoras / meta) * 100));
@@ -81,7 +88,7 @@ export const exportFormacoesToExcel = (
     // Contabilização de horas dos colaboradores desse grupo
     const totalHorasIndividualGrupo = colabsDoGrupo.reduce((acc, colab) => {
       const horasColab = formacoes
-        .filter(f => f.colaboradores.includes(colab.sigla))
+        .filter(f => colaboradorParticipouNaFormacao(colab, f, colaboradores, colaboradoresAteMarco2026))
         .reduce((sum, f) => sum + f.horas, 0);
       return acc + horasColab;
     }, 0);
@@ -111,7 +118,8 @@ export const exportRelatorioTrimestralToExcel = (
   formacoes: Formacao[],
   colaboradores: Colaborador[],
   ano: number,
-  trimestre: 1 | 2 | 3 | 4
+  trimestre: 1 | 2 | 3 | 4,
+  colaboradoresAteMarco2026: Colaborador[] = INITIAL_COLABORADORES_ATE_MARCO_2026
 ) => {
   const trimestresMeses: Record<number, number[]> = {
     1: [1, 2, 3],
@@ -141,7 +149,8 @@ export const exportRelatorioTrimestralToExcel = (
     formacoesTrimestre,
     colaboradores,
     ano,
-    `Relatorio_Trimestral_Q${trimestre}_${ano}_${nomesTrimestres[trimestre].replace(/[^a-zA-Z0-9]/g, '_')}`
+    `Relatorio_Trimestral_Q${trimestre}_${ano}_${nomesTrimestres[trimestre].replace(/[^a-zA-Z0-9]/g, '_')}`,
+    colaboradoresAteMarco2026
   );
 };
 
@@ -149,7 +158,8 @@ export const exportRelatorioMensalToExcel = (
   formacoes: Formacao[],
   colaboradores: Colaborador[],
   ano: number,
-  mes: number // 1 a 12
+  mes: number, // 1 a 12
+  colaboradoresAteMarco2026: Colaborador[] = INITIAL_COLABORADORES_ATE_MARCO_2026
 ) => {
   const nomesMeses = [
     'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
@@ -169,7 +179,8 @@ export const exportRelatorioMensalToExcel = (
     formacoesMes,
     colaboradores,
     ano,
-    `Relatorio_Mensal_${nomesMeses[mes - 1]}_${ano}`
+    `Relatorio_Mensal_${nomesMeses[mes - 1]}_${ano}`,
+    colaboradoresAteMarco2026
   );
 };
 

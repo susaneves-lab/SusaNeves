@@ -24,10 +24,15 @@ import {
   Sparkles
 } from 'lucide-react';
 import { printElementOnDevicePrinter } from '../utils/printUtils';
+import {
+  INITIAL_COLABORADORES_ATE_MARCO_2026,
+  resolverColaboradorPorSiglaNaFormacao
+} from '../data/collaborators';
 
 interface BureaucracyMatrixViewProps {
   formacoes: Formacao[];
   colaboradores: Colaborador[];
+  colaboradoresAteMarco2026?: Colaborador[];
   anoAtual: number;
   configuracoes?: ConfiguracoesApp;
   onAtualizarFormacao: (formacao: Formacao) => void;
@@ -56,6 +61,7 @@ export const SIGLAS_DOCUMENTOS = [
 export const BureaucracyMatrixView: React.FC<BureaucracyMatrixViewProps> = ({
   formacoes,
   colaboradores,
+  colaboradoresAteMarco2026 = INITIAL_COLABORADORES_ATE_MARCO_2026,
   anoAtual,
   configuracoes,
   onAtualizarFormacao,
@@ -591,7 +597,12 @@ export const BureaucracyMatrixView: React.FC<BureaucracyMatrixViewProps> = ({
                     .slice()
                     .sort((a, b) => a.localeCompare(b, 'pt', { sensitivity: 'base', numeric: true }))
                     .map(sigla => {
-                      const colab = colaboradores.find(c => c.sigla === sigla);
+                      const colab = resolverColaboradorPorSiglaNaFormacao(
+                        sigla,
+                        formacaoEmDetalhe,
+                        colaboradores,
+                        colaboradoresAteMarco2026
+                      );
                       return (
                         <span key={sigla} className="bg-white px-2 py-0.5 rounded border border-slate-200 font-mono text-[11px] text-slate-800">
                           <strong>{sigla}</strong> - {colab?.nome || 'Colaborador'}

@@ -1003,12 +1003,107 @@ export const encontrarColaboradorEquivalente = (
   return undefined;
 };
 
+const ALIASES_OCR_NUM_MECANOGRAFICO: Record<string, string> = {
+  ECO: '31222', // Elisabete da Conceição Barradas Dias (ECD até 03-03-2026 / EBD após)
+  MIC: '32116', // Maria João Batista Colaço (MJC)
+  MJT: '32115', // Magda Gonçalves Tavares (MGT)
+  JP: '35363',  // Joana Isabel Gonçalves Pereira (JIP)
+  AVN: '32727', // Andreia Susana Rico da Silva Neves (ASN)
+};
+
 export const obterSiglaAteMarco2026 = (
   colab: Colaborador,
   colaboradoresAteMarco2026: Colaborador[] = INITIAL_COLABORADORES_ATE_MARCO_2026
 ): string | null => {
   const eq = encontrarColaboradorEquivalente(colab, colaboradoresAteMarco2026);
   return eq ? eq.sigla : null;
+};
+
+export const resolverColaboradorPorSiglaNaFormacao = (
+  siglaRaw: string,
+  formacao: Pick<Formacao, 'data' | 'ano'>,
+  colaboradoresAtuais: Colaborador[],
+  colaboradoresAteMarco2026: Colaborador[] = INITIAL_COLABORADORES_ATE_MARCO_2026
+): Colaborador | undefined => {
+  if (typeof siglaRaw !== 'string') return undefined;
+  const siglaNorm = siglaRaw.trim().toUpperCase();
+  if (!siglaNorm) return undefined;
+
+  const usaMarco = usaListaAteMarco2026(formacao.data, formacao.ano);
+  const listaPrimaria = usaMarco ? colaboradoresAteMarco2026 : colaboradoresAtuais;
+
+  const direto = listaPrimaria.find(c => c.sigla.trim().toUpperCase() === siglaNorm);
+  if (direto) return direto;
+
+  const aliasNumMec = ALIASES_OCR_NUM_MECANOGRAFICO[siglaNorm];
+  if (aliasNumMec) {
+    const porAlias = listaPrimaria.find(c => c.numMecanografico?.trim() === aliasNumMec);
+    if (porAlias) return porAlias;
+  }
+
+  if (formacao.ano === 2026) {
+    const listaSecundaria = usaMarco ? colaboradoresAtuais : colaboradoresAteMarco2026;
+    const colabSec = listaSecundaria.find(c => c.sigla.trim().toUpperCase() === siglaNorm);
+    if (colabSec) {
+      return encontrarColaboradorEquivalente(colabSec, listaPrimaria) || colabSec;
+    }
+  }
+
+  return undefined;
+};
+
+export const normalizarSiglasFormacao = (
+  formacao: Pick<Formacao, 'data' | 'ano' | 'frequentadaColaboradorRad' | 'colaboradores'>,
+  colaboradoresAtuais: Colaborador[] = INITIAL_COLABORADORES,
+  colaboradoresAteMarco2026: Colaborador[] = INITIAL_COLABORADORES_ATE_MARCO_2026
+): string[] => {
+  if (
+    !formacao.frequentadaColaboradorRad ||
+    !Array.isArray(formacao.colaboradores) ||
+    formacao.colaboradores.length === 0
+  ) {
+    return [];
+  }
+
+  const usaMarco = usaListaAteMarco2026(formacao.data, formacao.ano);
+  const listaAlvo = usaMarco ? colaboradoresAteMarco2026 : colaboradoresAtuais;
+  const resultado = new Set<string>();
+
+  formacao.colaboradores.forEach(siglaRaw => {
+    if (typeof siglaRaw !== 'string') return;
+    const siglaNorm = siglaRaw.trim().toUpperCase();
+    if (!siglaNorm) return;
+
+    const direto = listaAlvo.find(c => c.sigla.trim().toUpperCase() === siglaNorm);
+    if (direto) {
+      resultado.add(direto.sigla.trim());
+      return;
+    }
+
+    const aliasNumMec = ALIASES_OCR_NUM_MECANOGRAFICO[siglaNorm];
+    if (aliasNumMec) {
+      const porAlias = listaAlvo.find(c => c.numMecanografico?.trim() === aliasNumMec);
+      if (porAlias) {
+        resultado.add(porAlias.sigla.trim());
+        return;
+      }
+    }
+
+    if (formacao.ano === 2026) {
+      const outraLista = usaMarco ? colaboradoresAtuais : colaboradoresAteMarco2026;
+      const colabOutro = outraLista.find(c => c.sigla.trim().toUpperCase() === siglaNorm);
+      if (colabOutro) {
+        const eq = encontrarColaboradorEquivalente(colabOutro, listaAlvo);
+        if (eq?.sigla) {
+          resultado.add(eq.sigla.trim());
+        }
+      }
+    }
+  });
+
+  return Array.from(resultado).sort((a, b) =>
+    a.localeCompare(b, 'pt', { sensitivity: 'base', numeric: true })
+  );
 };
 
 export const obterParticipantesDaFormacao = (
@@ -1031,6 +1126,17 @@ export const obterParticipantesDaFormacao = (
     if (typeof siglaRaw !== 'string') return;
     const siglaNorm = siglaRaw.trim().toUpperCase();
     if (!siglaNorm) return;
+
+    const aliasNumMec = ALIASES_OCR_NUM_MECANOGRAFICO[siglaNorm];
+    if (aliasNumMec) {
+      const porAliasAtual = colaboradoresAtuais.find(
+        c => c.numMecanografico?.trim() === aliasNumMec
+      );
+      if (porAliasAtual) {
+        encontrados.set(porAliasAtual.id, porAliasAtual);
+        return;
+      }
+    }
 
     if (usaMarco) {
       const colabMarco = colaboradoresAteMarco2026.find(

@@ -31,10 +31,15 @@ import { exportRelatorioMensalToExcel, exportRelatorioTrimestralToExcel, exportF
 import { printElementOnDevicePrinter } from '../utils/printUtils';
 import { MonthlyEvolutionBarChart } from './MonthlyEvolutionBarChart';
 import { PerformanceReportPdfModal } from './PerformanceReportPdfModal';
+import {
+  INITIAL_COLABORADORES_ATE_MARCO_2026,
+  obterParticipantesDaFormacao
+} from '../data/collaborators';
 
 interface ReportsViewProps {
   formacoes: Formacao[];
   colaboradores: Colaborador[];
+  colaboradoresAteMarco2026?: Colaborador[];
   anoAtual: number;
   metaAtual: MetaAno;
 }
@@ -42,6 +47,7 @@ interface ReportsViewProps {
 export const ReportsView: React.FC<ReportsViewProps> = ({
   formacoes,
   colaboradores,
+  colaboradoresAteMarco2026 = INITIAL_COLABORADORES_ATE_MARCO_2026,
   anoAtual,
   metaAtual
 }) => {
@@ -86,10 +92,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       const acoesGrupo = formacoesDoAno.filter(f => f.destinatarios.includes(grp) || (grp === 'TAS' && f.destinatarios.includes('AO' as any)));
 
       const horasGrupo = formacoesDoAno.reduce((sum, f) => {
-        const temColabDoGrupo = f.colaboradores?.some(sigla => {
-          const c = colaboradores.find(col => col.sigla === sigla);
-          return c?.categoriaProfissional === grp || (grp === 'TAS' && c?.categoriaProfissional === 'AO');
-        });
+        const participantes = obterParticipantesDaFormacao(f, colaboradores, colaboradoresAteMarco2026);
+        const temColabDoGrupo = participantes.some(c =>
+          c.categoriaProfissional === grp || (grp === 'TAS' && c.categoriaProfissional === 'AO')
+        );
         return temColabDoGrupo ? sum + f.horas : sum;
       }, 0);
 
@@ -106,7 +112,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         taxaCumprimento
       };
     });
-  }, [formacoesDoAno, colaboradores, metaAtual]);
+  }, [formacoesDoAno, colaboradores, colaboradoresAteMarco2026, metaAtual]);
 
   // Repartição por Tipo de Formação
   const tipos: FormacaoCategoria[] = ['Externa', 'Interna', 'Enfermagem', 'ACAF'];
@@ -316,18 +322,25 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   // Exportar Excel correspondente ao relatório atual
   const handleExportExcel = () => {
     if (tipoRelatorio === 'mensal') {
-      exportRelatorioMensalToExcel(formacoes, colaboradores, anoAtual, mesSelecionado);
+      exportRelatorioMensalToExcel(formacoes, colaboradores, anoAtual, mesSelecionado, colaboradoresAteMarco2026);
     } else if (tipoRelatorio === 'trimestral') {
-      exportRelatorioTrimestralToExcel(formacoes, colaboradores, anoAtual, trimestreSelecionado);
+      exportRelatorioTrimestralToExcel(formacoes, colaboradores, anoAtual, trimestreSelecionado, colaboradoresAteMarco2026);
     } else if (tipoRelatorio === 'acumulativo') {
       exportFormacoesToExcel(
         formacoesFiltradas,
         colaboradores,
         anoAtual,
-        `Relatorio_Formacoes_Acumulativas_Jan_a_${nomesMeses[mesSelecionado - 1]}_${anoAtual}`
+        `Relatorio_Formacoes_Acumulativas_Jan_a_${nomesMeses[mesSelecionado - 1]}_${anoAtual}`,
+        colaboradoresAteMarco2026
       );
     } else {
-      exportFormacoesToExcel(formacoesFiltradas, colaboradores, anoAtual, `Relatorio_Anual_Servico_RAD_${anoAtual}`);
+      exportFormacoesToExcel(
+        formacoesFiltradas,
+        colaboradores,
+        anoAtual,
+        `Relatorio_Anual_Servico_RAD_${anoAtual}`,
+        colaboradoresAteMarco2026
+      );
     }
   };
 
@@ -1104,6 +1117,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         onClose={() => setIsPdfModalOpen(false)}
         formacoes={formacoes}
         colaboradores={colaboradores}
+        colaboradoresAteMarco2026={colaboradoresAteMarco2026}
         anoAtual={anoAtual}
         metaAtual={metaAtual}
         tipoRelatorioInicial={tipoRelatorio}

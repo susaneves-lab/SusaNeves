@@ -1,6 +1,6 @@
 import { Formacao, Colaborador, CertificacaoObrigatoria, MetaAno, HistoricoAno, ConfiguracoesApp, DEFAULT_RECAP_CODIGOS, TarefaQualidade } from '../types';
 import { SEED_FORMACOES_2026, INITIAL_META_2026, INITIAL_HISTORICO_2025 } from '../data/seedData2026';
-import { INITIAL_COLABORADORES, INITIAL_COLABORADORES_ATE_MARCO_2026, INITIAL_CERTIFICACOES } from '../data/collaborators';
+import { INITIAL_COLABORADORES, INITIAL_COLABORADORES_ATE_MARCO_2026, INITIAL_CERTIFICACOES, normalizarSiglasFormacao } from '../data/collaborators';
 import { gerarTarefasPadraoAno } from '../data/qualityTasksData';
 
 const STORAGE_KEYS = {
@@ -54,18 +54,28 @@ export const saveStoredConfiguracoes = (cfg: ConfiguracoesApp): void => {
 };
 
 export const getStoredFormacoes = (): Formacao[] => {
+  const colabsAtuais = getStoredColaboradores();
+  const colabsAteMarco = getStoredColaboradoresAteMarco2026();
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.FORMACOES);
-    if (!raw) return SEED_FORMACOES_2026;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) return SEED_FORMACOES_2026;
-    return parsed.map((f: Formacao) => ({
+    const baseList: Formacao[] = !raw
+      ? SEED_FORMACOES_2026
+      : (() => {
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) && parsed.length > 0 ? parsed : SEED_FORMACOES_2026;
+        })();
+
+    return baseList.map((f: Formacao) => ({
       ...f,
-      destinatarios: (f.destinatarios || []).map((d: any) => d === 'AO' ? 'TAS' : d)
+      destinatarios: (f.destinatarios || []).map((d: any) => (d === 'AO' ? 'TAS' : d)),
+      colaboradores: normalizarSiglasFormacao(f, colabsAtuais, colabsAteMarco)
     }));
   } catch (err) {
     console.error('Error loading formacoes:', err);
-    return SEED_FORMACOES_2026;
+    return SEED_FORMACOES_2026.map(f => ({
+      ...f,
+      colaboradores: normalizarSiglasFormacao(f, colabsAtuais, colabsAteMarco)
+    }));
   }
 };
 
