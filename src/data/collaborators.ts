@@ -1,4 +1,6 @@
-import { Colaborador, CertificacaoObrigatoria } from '../types';
+import { Colaborador, CertificacaoObrigatoria, Formacao } from '../types';
+
+export const DATA_LIMITE_LISTA_MARCO_2026 = '2026-03-03';
 
 export const INITIAL_COLABORADORES: Colaborador[] = [
   // Técnicos Auxiliares de Saúde (TAS)
@@ -535,6 +537,563 @@ export const INITIAL_COLABORADORES: Colaborador[] = [
     metaHorasAnual: 35
   }
 ];
+
+// Lista exclusiva para o ano de 2026 até à data 03-03-2026 (inclusive)
+export const INITIAL_COLABORADORES_ATE_MARCO_2026: Colaborador[] = [
+  // Enfermeiros (ENF)
+  {
+    id: 'col-m26-1',
+    nome: 'Ana Catarina de Jesus Alcaria',
+    sigla: 'ACA',
+    numMecanografico: '31506',
+    categoriaProfissional: 'ENF',
+    cargo: 'Enfermeira',
+    email: 'anaalcaria@ulsar.min-saude.pt',
+    estadoProfissional: 'Ausente: Baixa',
+    ativo: false,
+    observacoes: 'Ausente: Baixa',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-2',
+    nome: 'Ana Raquel Ramos Feijão',
+    sigla: 'ARF',
+    numMecanografico: '32270',
+    categoriaProfissional: 'ENF',
+    cargo: 'Enfermeira Especialista em Oncologia',
+    email: 'anafeijao@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: 'Especialista em Oncologia',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-3',
+    nome: 'Elisabete da Conceição Barradas Dias',
+    sigla: 'ECD',
+    numMecanografico: '31222',
+    categoriaProfissional: 'ENF',
+    cargo: 'Enfermeira',
+    email: 'elisabetebdias@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-4',
+    nome: 'Elsa Sofia Jorge Alves',
+    sigla: 'ESA',
+    numMecanografico: '31795',
+    categoriaProfissional: 'ENF',
+    cargo: 'Enfermeira',
+    email: 'elsasalves@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-5',
+    nome: 'Maria Manuel Castilho Romão Madaleno',
+    sigla: 'MMM',
+    numMecanografico: '31033',
+    categoriaProfissional: 'ENF',
+    cargo: 'Enfermeira',
+    email: 'mariarmadaleno@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-6',
+    nome: 'Tânia Isabel Espadinha de Matos Vitoriano',
+    sigla: 'TIV',
+    numMecanografico: '32168',
+    categoriaProfissional: 'ENF',
+    cargo: 'Enfermeira',
+    email: 'taniavitoriano@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 35
+  },
+
+  // Físicos (FIS)
+  {
+    id: 'col-m26-7',
+    nome: 'Ana Sofia Lourenço de Oliveira Pinheiro',
+    sigla: 'ASP',
+    numMecanografico: '32807',
+    categoriaProfissional: 'FIS',
+    cargo: 'Física Médica',
+    email: 'anaopinheiro@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 45
+  },
+  {
+    id: 'col-m26-8',
+    nome: 'Edgar Alexandre Piazentim Ferreira da Mota e Sousa',
+    sigla: 'EAS',
+    numMecanografico: '35374',
+    categoriaProfissional: 'FIS',
+    cargo: 'Físico Médico',
+    email: 'edgarmsousa@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: 'Entrou a 23-02-2026',
+    metaHorasAnual: 45
+  },
+  {
+    id: 'col-m26-9',
+    nome: 'João Miguel Esteves Ramos',
+    sigla: 'JMR',
+    numMecanografico: '34475',
+    categoriaProfissional: 'FIS',
+    cargo: 'Físico Médico',
+    email: 'joaoeramos@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 45
+  },
+
+  // Médicos Radioncologistas (MR)
+  {
+    id: 'col-m26-10',
+    nome: 'Ana Isabel Martins Pimenta',
+    sigla: 'AIP',
+    numMecanografico: '34714',
+    categoriaProfissional: 'MR',
+    cargo: 'Médica Radioncologista',
+    email: 'anampimenta@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 50
+  },
+  {
+    id: 'col-m26-11',
+    nome: 'Cláudia dos Santos Viveiros',
+    sigla: 'CSV',
+    numMecanografico: '34422',
+    categoriaProfissional: 'MR',
+    cargo: 'Médica Radioncologista',
+    email: 'claudiasviveiros@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 50
+  },
+  {
+    id: 'col-m26-12',
+    nome: 'João Henrique Vera Ulrich',
+    sigla: 'JHU',
+    numMecanografico: '34643',
+    categoriaProfissional: 'MR',
+    cargo: 'Médico Radioncologista',
+    email: 'joaovulrich@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 50
+  },
+  {
+    id: 'col-m26-13',
+    nome: 'Maria Inmaculada Maldonado Pareja',
+    sigla: 'MIP',
+    numMecanografico: '32707',
+    categoriaProfissional: 'MR',
+    cargo: 'Médica Radioncologista',
+    email: 'inmaculadamaldonado@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 50
+  },
+
+  // Terapeutas de Dosimetria (TSDT)
+  {
+    id: 'col-m26-14',
+    nome: 'Carla Sofia Gonçalves Borges',
+    sigla: 'CSB',
+    numMecanografico: '33992',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Dosimetria',
+    email: 'carlagborges@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 40
+  },
+  {
+    id: 'col-m26-15',
+    nome: 'Jorge Manuel Duarte Faria',
+    sigla: 'JMF',
+    numMecanografico: '32798',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Dosimetria',
+    email: 'jorgedfaria@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 40
+  },
+  {
+    id: 'col-m26-16',
+    nome: 'Liliana Isabel Tomé Martins',
+    sigla: 'LIM',
+    numMecanografico: '32728',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Dosimetria',
+    email: 'lilianamartins@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 40
+  },
+  {
+    id: 'col-m26-17',
+    nome: 'Vanessa Alexandra Baptista Esteves',
+    sigla: 'VAE',
+    numMecanografico: '32940',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Dosimetria',
+    email: 'vanessaesteves@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 40
+  },
+
+  // Terapeutas de Unidade de Radioterapia (TSDT)
+  {
+    id: 'col-m26-18',
+    nome: 'Ana Margarida da Silva Lopes',
+    sigla: 'AML',
+    numMecanografico: '33334',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Unidade de Radioterapia',
+    email: 'anaslopes@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-19',
+    nome: 'Andreia Susana Rico da Silva Neves',
+    sigla: 'ASN',
+    numMecanografico: '32727',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Unidade de Radioterapia',
+    email: 'andreiasneves@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 40
+  },
+  {
+    id: 'col-m26-20',
+    nome: 'Eliana Filipa Pais Gomes Lima',
+    sigla: 'EFL',
+    numMecanografico: '34909',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Unidade de Radioterapia',
+    email: 'elianaglima@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-21',
+    nome: 'Irina dos Reis Lourenço',
+    sigla: 'IRL',
+    numMecanografico: '32729',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Unidade de Radioterapia',
+    email: 'irinarlourenco@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-22',
+    nome: 'Joana Isabel Gonçalves Pereira',
+    sigla: 'JIP',
+    numMecanografico: '35363',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Unidade de Radioterapia',
+    email: 'joanagpereira@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: 'Entrou a 09-02-2026',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-23',
+    nome: 'Lina Márcia Custódio Silva',
+    sigla: 'LMS',
+    numMecanografico: '32239',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Unidade de Radioterapia',
+    email: 'linacsilva@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-24',
+    nome: 'Lúcia de Fátima Letras Rodrigues',
+    sigla: 'LFR',
+    numMecanografico: '34642',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Unidade de Radioterapia',
+    email: 'lucialrodrigues@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-25',
+    nome: 'Magda Gonçalves Tavares',
+    sigla: 'MGT',
+    numMecanografico: '32115',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Unidade de Radioterapia',
+    email: 'magdagtavares@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-26',
+    nome: 'Marco Nuno Silva Meneses',
+    sigla: 'MNM',
+    numMecanografico: '32238',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Unidade de Radioterapia',
+    email: 'marcosmeneses@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-27',
+    nome: 'Maria João Batista Colaço',
+    sigla: 'MJC',
+    numMecanografico: '32116',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Unidade de Radioterapia',
+    email: 'mariacpaiva@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-28',
+    nome: 'Sara Joana Santos Alves',
+    sigla: 'SJA',
+    numMecanografico: '32310',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Unidade de Radioterapia',
+    email: 'sarasalves@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-29',
+    nome: 'Sónia Cristina Guerra Baptista',
+    sigla: 'SCB',
+    numMecanografico: '32162',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Unidade de Radioterapia',
+    email: 'soniagbatista@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 35
+  },
+  {
+    id: 'col-m26-30',
+    nome: 'Vera Mónica Amaro Vieira',
+    sigla: 'VMV',
+    numMecanografico: '32163',
+    categoriaProfissional: 'TSDT',
+    cargo: 'Terapeuta de Unidade de Radioterapia',
+    email: 'veraavieira@ulsar.min-saude.pt',
+    estadoProfissional: 'Activo',
+    ativo: true,
+    observacoes: '',
+    metaHorasAnual: 35
+  }
+];
+
+export const extrairDataIso = (dataStr?: string): string | null => {
+  if (!dataStr) return null;
+  const isoMatch = dataStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  const ptMatch = dataStr.match(/(\d{2})[-/](\d{2})[-/](\d{4})/);
+  if (ptMatch) return `${ptMatch[3]}-${ptMatch[2]}-${ptMatch[1]}`;
+  return null;
+};
+
+/**
+ * Aplica a lista especial apenas no ano 2026 e apenas até à data 03-03-2026 (inclusive).
+ * Para todos os restantes anos (e datas após 03-03-2026) mantém a lista atual.
+ */
+export const usaListaAteMarco2026 = (dataStr?: string, anoContexto?: number): boolean => {
+  if (anoContexto !== undefined && anoContexto !== 2026) {
+    return false;
+  }
+  const iso = extrairDataIso(dataStr);
+  if (!iso) return false;
+  return iso >= '2026-01-01' && iso <= DATA_LIMITE_LISTA_MARCO_2026;
+};
+
+export const obterColaboradoresPorData = (
+  dataStr: string | undefined,
+  anoContexto: number,
+  colaboradoresAtuais: Colaborador[],
+  colaboradoresAteMarco2026: Colaborador[] = INITIAL_COLABORADORES_ATE_MARCO_2026
+): Colaborador[] => {
+  return usaListaAteMarco2026(dataStr, anoContexto)
+    ? colaboradoresAteMarco2026
+    : colaboradoresAtuais;
+};
+
+const normalizarNomeComparacao = (nome: string): string =>
+  nome
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+export const encontrarColaboradorEquivalente = (
+  alvo: Colaborador,
+  listaDestino: Colaborador[]
+): Colaborador | undefined => {
+  const numMec = alvo.numMecanografico?.trim();
+  if (numMec) {
+    const porNum = listaDestino.find(c => c.numMecanografico?.trim() === numMec);
+    if (porNum) return porNum;
+  }
+  const email = alvo.email?.trim().toLowerCase();
+  if (email) {
+    const porEmail = listaDestino.find(c => c.email?.trim().toLowerCase() === email);
+    if (porEmail) return porEmail;
+  }
+  const nomeNorm = normalizarNomeComparacao(alvo.nome || '');
+  if (nomeNorm) {
+    return listaDestino.find(c => normalizarNomeComparacao(c.nome || '') === nomeNorm);
+  }
+  return undefined;
+};
+
+export const obterSiglaAteMarco2026 = (
+  colab: Colaborador,
+  colaboradoresAteMarco2026: Colaborador[] = INITIAL_COLABORADORES_ATE_MARCO_2026
+): string | null => {
+  const eq = encontrarColaboradorEquivalente(colab, colaboradoresAteMarco2026);
+  return eq ? eq.sigla : null;
+};
+
+export const obterParticipantesDaFormacao = (
+  formacao: Formacao,
+  colaboradoresAtuais: Colaborador[],
+  colaboradoresAteMarco2026: Colaborador[] = INITIAL_COLABORADORES_ATE_MARCO_2026
+): Colaborador[] => {
+  if (
+    !formacao.frequentadaColaboradorRad ||
+    !Array.isArray(formacao.colaboradores) ||
+    formacao.colaboradores.length === 0
+  ) {
+    return [];
+  }
+
+  const usaMarco = usaListaAteMarco2026(formacao.data, formacao.ano);
+  const encontrados = new Map<string, Colaborador>();
+
+  formacao.colaboradores.forEach(siglaRaw => {
+    if (typeof siglaRaw !== 'string') return;
+    const siglaNorm = siglaRaw.trim().toUpperCase();
+    if (!siglaNorm) return;
+
+    if (usaMarco) {
+      const colabMarco = colaboradoresAteMarco2026.find(
+        c => c.sigla.trim().toUpperCase() === siglaNorm
+      );
+      if (colabMarco) {
+        const equivalenteAtual =
+          encontrarColaboradorEquivalente(colabMarco, colaboradoresAtuais) || colabMarco;
+        encontrados.set(equivalenteAtual.id, equivalenteAtual);
+        return;
+      }
+
+      const colabAtualFallback = colaboradoresAtuais.find(
+        c => c.sigla.trim().toUpperCase() === siglaNorm
+      );
+      if (colabAtualFallback) {
+        encontrados.set(colabAtualFallback.id, colabAtualFallback);
+      }
+      return;
+    }
+
+    const colabAtual = colaboradoresAtuais.find(
+      c => c.sigla.trim().toUpperCase() === siglaNorm
+    );
+    if (colabAtual) {
+      encontrados.set(colabAtual.id, colabAtual);
+      return;
+    }
+
+    if (formacao.ano === 2026) {
+      const colabMarcoFallback = colaboradoresAteMarco2026.find(
+        c => c.sigla.trim().toUpperCase() === siglaNorm
+      );
+      if (colabMarcoFallback) {
+        const equivalenteAtual =
+          encontrarColaboradorEquivalente(colabMarcoFallback, colaboradoresAtuais) ||
+          colabMarcoFallback;
+        encontrados.set(equivalenteAtual.id, equivalenteAtual);
+      }
+    }
+  });
+
+  return Array.from(encontrados.values());
+};
+
+export const colaboradorParticipouNaFormacao = (
+  colab: Colaborador,
+  formacao: Formacao,
+  colaboradoresAtuais: Colaborador[],
+  colaboradoresAteMarco2026: Colaborador[] = INITIAL_COLABORADORES_ATE_MARCO_2026
+): boolean => {
+  const participantes = obterParticipantesDaFormacao(
+    formacao,
+    colaboradoresAtuais,
+    colaboradoresAteMarco2026
+  );
+  const numMecAlvo = colab.numMecanografico?.trim();
+  return participantes.some(
+    p =>
+      p.id === colab.id ||
+      (Boolean(numMecAlvo) && p.numMecanografico?.trim() === numMecAlvo)
+  );
+};
 
 export const INITIAL_CERTIFICACOES: CertificacaoObrigatoria[] = [
   {

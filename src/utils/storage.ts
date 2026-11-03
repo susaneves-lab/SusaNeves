@@ -1,11 +1,12 @@
 import { Formacao, Colaborador, CertificacaoObrigatoria, MetaAno, HistoricoAno, ConfiguracoesApp, DEFAULT_RECAP_CODIGOS, TarefaQualidade } from '../types';
 import { SEED_FORMACOES_2026, INITIAL_META_2026, INITIAL_HISTORICO_2025 } from '../data/seedData2026';
-import { INITIAL_COLABORADORES, INITIAL_CERTIFICACOES } from '../data/collaborators';
+import { INITIAL_COLABORADORES, INITIAL_COLABORADORES_ATE_MARCO_2026, INITIAL_CERTIFICACOES } from '../data/collaborators';
 import { gerarTarefasPadraoAno } from '../data/qualityTasksData';
 
 const STORAGE_KEYS = {
   FORMACOES: 'radform_formacoes_v3',
   COLABORADORES: 'radform_colaboradores_v3',
+  COLABORADORES_ATE_MARCO_2026: 'radform_colaboradores_ate_marco_2026_v1',
   CERTIFICACOES: 'radform_certificacoes_v3',
   METAS: 'radform_metas_v3',
   HISTORICOS: 'radform_historicos_v3',
@@ -94,6 +95,25 @@ export const saveStoredColaboradores = (colabs: Colaborador[]): void => {
   localStorage.setItem(STORAGE_KEYS.COLABORADORES, JSON.stringify(colabs));
 };
 
+export const getStoredColaboradoresAteMarco2026 = (): Colaborador[] => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.COLABORADORES_ATE_MARCO_2026);
+    if (!raw) return INITIAL_COLABORADORES_ATE_MARCO_2026;
+    const parsed: Colaborador[] = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return INITIAL_COLABORADORES_ATE_MARCO_2026;
+    return parsed.map(c => ({
+      ...c,
+      categoriaProfissional: (c.categoriaProfissional as any) === 'AO' ? 'TAS' : c.categoriaProfissional
+    }));
+  } catch {
+    return INITIAL_COLABORADORES_ATE_MARCO_2026;
+  }
+};
+
+export const saveStoredColaboradoresAteMarco2026 = (colabs: Colaborador[]): void => {
+  localStorage.setItem(STORAGE_KEYS.COLABORADORES_ATE_MARCO_2026, JSON.stringify(colabs));
+};
+
 export const getStoredCertificacoes = (): CertificacaoObrigatoria[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.CERTIFICACOES);
@@ -153,6 +173,7 @@ export const saveStoredCurrentYear = (year: number): void => {
 export const generateFullBackupDownload = (dados: {
   formacoes: Formacao[];
   colaboradores: Colaborador[];
+  colaboradoresAteMarco2026?: Colaborador[];
   certificacoes?: CertificacaoObrigatoria[];
   metas?: Record<number, MetaAno>;
   historicos?: HistoricoAno[];
@@ -163,6 +184,7 @@ export const generateFullBackupDownload = (dados: {
     versaoSistema: 'RadForm-2.4',
     dataBackup: new Date().toISOString(),
     servico: 'Serviço de Radioterapia - Hospital ULSAR',
+    colaboradoresAteMarco2026: dados.colaboradoresAteMarco2026 || getStoredColaboradoresAteMarco2026(),
     certificacoes: dados.certificacoes || getStoredCertificacoes(),
     metas: dados.metas || getStoredMetas(),
     historicos: dados.historicos || getStoredHistoricos(),

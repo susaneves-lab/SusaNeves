@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Formacao, Colaborador, DESTINATARIOS_INFO } from '../types';
+import {
+  INITIAL_COLABORADORES_ATE_MARCO_2026,
+  obterParticipantesDaFormacao
+} from '../data/collaborators';
 import { 
   Mail, 
   Send, 
@@ -19,6 +23,7 @@ interface OutlookEmailModalProps {
   onClose: () => void;
   formacao: Formacao | null;
   colaboradores: Colaborador[];
+  colaboradoresAteMarco2026?: Colaborador[];
   onMarcarEmailEnviado: (formacaoId: string) => void;
 }
 
@@ -27,10 +32,13 @@ export const OutlookEmailModal: React.FC<OutlookEmailModalProps> = ({
   onClose,
   formacao,
   colaboradores,
+  colaboradoresAteMarco2026 = INITIAL_COLABORADORES_ATE_MARCO_2026,
   onMarcarEmailEnviado
 }) => {
-  // Obter colaboradores participantes e respetivos emails
-  const participantes = colaboradores.filter(c => formacao?.colaboradores?.includes(c.sigla));
+  // Obter colaboradores participantes e respetivos emails (respeitando lista até 03-03-2026 no ano 2026)
+  const participantes = formacao
+    ? obterParticipantesDaFormacao(formacao, colaboradores, colaboradoresAteMarco2026)
+    : [];
   const emailsDestinatarios = participantes.map(p => p.email).filter(Boolean);
   
   // Destinatários padrão para CC (Direção / Chefia de Radioterapia)
@@ -75,7 +83,7 @@ Email: radioterapia.formacao@ulsar.min-saude.pt`;
   // Sincronizar dados sempre que uma nova formação for aberta no modal
   useEffect(() => {
     if (formacao) {
-      const partics = colaboradores.filter(c => formacao.colaboradores?.includes(c.sigla));
+      const partics = obterParticipantesDaFormacao(formacao, colaboradores, colaboradoresAteMarco2026);
       const emails = partics.map(p => p.email).filter(Boolean);
       setDestinatarioPrincipal(
         emails.length > 0 ? emails.join('; ') : 'formacao.radioterapia@ulsar.min-saude.pt'
@@ -83,7 +91,7 @@ Email: radioterapia.formacao@ulsar.min-saude.pt`;
       setAssunto(`[RadForm · ULSAR] Avaliação da Eficácia aos 6 Meses · Formação: ${formacao.nome}`);
       setCorpoEmail(gerarCorpoSemCodigo(formacao, partics));
     }
-  }, [formacao, colaboradores]);
+  }, [formacao, colaboradores, colaboradoresAteMarco2026]);
 
   if (!isOpen || !formacao) return null;
 

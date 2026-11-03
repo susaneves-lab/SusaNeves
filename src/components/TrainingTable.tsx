@@ -203,8 +203,14 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
         const dataStr = f.data ? `${f.data}${f.dataFim ? ` a ${f.dataFim}` : ''}` : '-';
         const destStr = f.destinatarios && f.destinatarios.length > 0 ? f.destinatarios.join(', ') : '-';
         let obsColab = '';
-        if (f.colaboradores && f.colaboradores.length > 0) {
-          obsColab += `Colab: ${f.colaboradores.join(', ')}`;
+        const colabsOrdenadosPdf = f.frequentadaColaboradorRad && Array.isArray(f.colaboradores)
+          ? [...f.colaboradores]
+              .map(s => s.trim())
+              .filter(Boolean)
+              .sort((a, b) => a.localeCompare(b, 'pt', { sensitivity: 'base', numeric: true }))
+          : [];
+        if (colabsOrdenadosPdf.length > 0) {
+          obsColab += `Colab: ${colabsOrdenadosPdf.join(', ')}`;
         }
         if (f.observacoes) {
           obsColab += (obsColab ? `\nObs: ${f.observacoes}` : f.observacoes);
@@ -563,7 +569,7 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
             >
               <option value="todos">Colaborador: Todos</option>
               {[...colaboradores]
-                .sort((a, b) => a.nome.localeCompare(b.nome, 'pt', { sensitivity: 'base' }))
+                .sort((a, b) => a.sigla.localeCompare(b.sigla, 'pt', { sensitivity: 'base', numeric: true }))
                 .map(c => (
                   <option key={c.id} value={c.sigla}>
                     {c.sigla} - {c.nome}
@@ -845,9 +851,9 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
                         <span className="font-semibold text-slate-900 block leading-tight text-xs">
                           {formacao.nome}
                         </span>
-                        {formacao.colaboradores && formacao.colaboradores.length > 0 && (
+                        {formacao.frequentadaColaboradorRad && formacao.colaboradores && formacao.colaboradores.length > 0 && (
                           <span className="text-[11px] text-teal-800 font-mono mt-0.5 block truncate max-w-[260px]">
-                            Part: {formacao.colaboradores.join(', ')}
+                            Part: {[...formacao.colaboradores].sort((a, b) => a.localeCompare(b, 'pt', { sensitivity: 'base', numeric: true })).join(', ')}
                           </span>
                         )}
                       </td>
@@ -1181,12 +1187,12 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
 
                     {/* 8. Observações & Colaboradores */}
                     <td className="py-3 px-2 text-slate-700 leading-snug text-[13px] align-top break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                      {f.colaboradores && f.colaboradores.length > 0 && (
+                      {f.frequentadaColaboradorRad && f.colaboradores && f.colaboradores.length > 0 && (
                         <div className="font-mono text-teal-900 font-semibold mb-1">
-                          Colab: {f.colaboradores.join(', ')}
+                          Colab: {[...f.colaboradores].sort((a, b) => a.localeCompare(b, 'pt', { sensitivity: 'base', numeric: true })).join(', ')}
                         </div>
                       )}
-                      {f.observacoes ? <span>{f.observacoes}</span> : (!f.colaboradores || f.colaboradores.length === 0 ? '-' : null)}
+                      {f.observacoes ? <span>{f.observacoes}</span> : (!f.frequentadaColaboradorRad || !f.colaboradores || f.colaboradores.length === 0 ? '-' : null)}
                     </td>
                   </tr>
                 ))}

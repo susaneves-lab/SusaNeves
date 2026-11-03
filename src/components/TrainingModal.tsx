@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Formacao, 
   Colaborador, 
@@ -21,6 +21,12 @@ import {
 } from 'lucide-react';
 import { gerarCodigoFormacaoAutomatico } from '../utils/codeGenerator';
 import { extrairDadosECriarFormacaoDeCertificado } from '../utils/certificateParser';
+import {
+  INITIAL_COLABORADORES_ATE_MARCO_2026,
+  obterColaboradoresPorData,
+  usaListaAteMarco2026,
+  encontrarColaboradorEquivalente
+} from '../data/collaborators';
 
 interface TrainingModalProps {
   isOpen: boolean;
@@ -29,6 +35,7 @@ interface TrainingModalProps {
   formacaoToEdit: Formacao | null;
   anoAtual: number;
   colaboradores: Colaborador[];
+  colaboradoresAteMarco2026?: Colaborador[];
 }
 
 export const TrainingModal: React.FC<TrainingModalProps> = ({
@@ -37,7 +44,8 @@ export const TrainingModal: React.FC<TrainingModalProps> = ({
   onSave,
   formacaoToEdit,
   anoAtual,
-  colaboradores
+  colaboradores,
+  colaboradoresAteMarco2026 = INITIAL_COLABORADORES_ATE_MARCO_2026
 }) => {
   // Form states
   const [nome, setNome] = useState('');
@@ -64,18 +72,113 @@ export const TrainingModal: React.FC<TrainingModalProps> = ({
     setCodigo(res.codigo);
   };
 
+  const usaListaAteMarco = useMemo(
+    () => usaListaAteMarco2026(data, anoAtual),
+    [data, anoAtual]
+  );
+
+  const colaboradoresAplicaveis = useMemo(
+    () => obterColaboradoresPorData(data, anoAtual, colaboradores, colaboradoresAteMarco2026),
+    [data, anoAtual, colaboradores, colaboradoresAteMarco2026]
+  );
+
+  const colaboradoresOrdenadosPorSigla = useMemo(() => {
+    return [...colaboradoresAplicaveis].sort((a, b) =>
+      a.sigla.localeCompare(b.sigla, 'pt', { sensitivity: 'base', numeric: true })
+    );
+  }, [colaboradoresAplicaveis]);
+
+  const normalizarColaboradoresValidos = useCallback(
+    (
+      lista: string[] | undefined,
+      dataAlvo: string,
+      listaOrigemOpcional?: Colaborador[]
+    ): string[] => {
+      if (!Array.isArray(lista) || lista.length === 0) return [];
+
+      const listaDestino = obterColaboradoresPorData(
+        dataAlvo,
+        anoAtual,
+        colaboradores,
+        colaboradoresAteMarco2026
+      );
+
+      const mapaSiglasValidas = new Map<string, string>();
+      listaDestino.forEach((c) => {
+        if (c.sigla && c.sigla.trim()) {
+          mapaSiglasValidas.set(c.sigla.trim().toUpperCase(), c.sigla.trim());
+        }
+      });
+
+      const resultado = new Set<string>();
+      lista.forEach((siglaRaw) => {
+        if (typeof siglaRaw !== 'string') return;
+        const siglaUpper = siglaRaw.trim().toUpperCase();
+        if (!siglaUpper) return;
+
+        if (listaOrigemOpcional) {
+          const colabOrigem = listaOrigemOpcional.find(
+            (c) => c.sigla.trim().toUpperCase() === siglaUpper
+          );
+          if (colabOrigem) {
+            const eq = encontrarColaboradorEquivalente(colabOrigem, listaDestino);
+            if (eq?.sigla) {
+              resultado.add(eq.sigla.trim());
+            }
+            return;
+          }
+          const siglaDireta = mapaSiglasValidas.get(siglaUpper);
+          if (siglaDireta) {
+            resultado.add(siglaDireta);
+          }
+          return;
+        }
+
+        const siglaCanonica = mapaSiglasValidas.get(siglaUpper);
+        if (siglaCanonica) {
+          resultado.add(siglaCanonica);
+          return;
+        }
+
+        if (anoAtual === 2026) {
+          const outraLista = usaListaAteMarco2026(dataAlvo, anoAtual)
+            ? colaboradores
+            : colaboradoresAteMarco2026;
+          const colabOutro = outraLista.find(
+            (c) => c.sigla.trim().toUpperCase() === siglaUpper
+          );
+          if (colabOutro) {
+            const eq = encontrarColaboradorEquivalente(colabOutro, listaDestino);
+            if (eq?.sigla) {
+              resultado.add(eq.sigla.trim());
+            }
+          }
+        }
+      });
+
+      return Array.from(resultado).sort((a, b) =>
+        a.localeCompare(b, 'pt', { sensitivity: 'base', numeric: true })
+      );
+    },
+    [anoAtual, colaboradores, colaboradoresAteMarco2026]
+  );
+
   // Populate data when editing
   useEffect(() => {
     if (!isOpen) return;
 
     if (formacaoToEdit) {
+      const colabsNormalizados = formacaoToEdit.frequentadaColaboradorRad
+        ? normalizarColaboradoresValidos(formacaoToEdit.colaboradores, formacaoToEdit.data)
+        : [];
+
       setNome(formacaoToEdit.nome);
       setCategoria(formacaoToEdit.categoria);
       setDestinatarios(formacaoToEdit.destinatarios);
       setData(formacaoToEdit.data);
       setDataFim(formacaoToEdit.dataFim || '');
       setFrequentadaColaboradorRad(formacaoToEdit.frequentadaColaboradorRad);
-      setColaboradoresSelecionados(formacaoToEdit.colaboradores);
+      setColaboradoresSelecionados(colabsNormalizados);
       setHoras(formacaoToEdit.horas);
       setHorasTexto(formacaoToEdit.horasTexto || '');
       setCodigo(formacaoToEdit.codigo);
@@ -109,7 +212,7 @@ export const TrainingModal: React.FC<TrainingModalProps> = ({
       setCertificado(undefined);
     }
     setErroValidacao('');
-  }, [formacaoToEdit, isOpen, anoAtual]);
+  }, [formacaoToEdit, isOpen, anoAtual, normalizarColaboradoresValidos]);
 
   // Recalcular código sugerido caso mude categoria ou data em novo registo
   const handleCategoriaChange = (novaCat: FormacaoCategoria) => {
@@ -120,7 +223,23 @@ export const TrainingModal: React.FC<TrainingModalProps> = ({
   };
 
   const handleDataChange = (novaData: string) => {
+    const listaOrigem = obterColaboradoresPorData(
+      data,
+      anoAtual,
+      colaboradores,
+      colaboradoresAteMarco2026
+    );
+    const mudouLista =
+      usaListaAteMarco2026(data, anoAtual) !== usaListaAteMarco2026(novaData, anoAtual);
+
     setData(novaData);
+
+    if (mudouLista) {
+      setColaboradoresSelecionados((prev) =>
+        normalizarColaboradoresValidos(prev, novaData, listaOrigem)
+      );
+    }
+
     if (!formacaoToEdit) {
       handleRecalcularCodigoAutomatico(novaData, categoria);
     }
@@ -138,11 +257,18 @@ export const TrainingModal: React.FC<TrainingModalProps> = ({
   };
 
   const handleToggleColaborador = (sigla: string) => {
-    if (colaboradoresSelecionados.includes(sigla)) {
-      setColaboradoresSelecionados(colaboradoresSelecionados.filter(s => s !== sigla));
-    } else {
-      setColaboradoresSelecionados([...colaboradoresSelecionados, sigla]);
-    }
+    setColaboradoresSelecionados((prev) => {
+      const listaAtual = normalizarColaboradoresValidos(prev, data);
+      const jaSelecionado = listaAtual.some(
+        (s) => s.toUpperCase() === sigla.trim().toUpperCase()
+      );
+      if (jaSelecionado) {
+        return listaAtual.filter(
+          (s) => s.toUpperCase() !== sigla.trim().toUpperCase()
+        );
+      }
+      return normalizarColaboradoresValidos([...listaAtual, sigla], data);
+    });
   };
 
   // Upload do ficheiro de certificado (converte para base64 e auto-preenche dados conhecidos)
@@ -156,20 +282,28 @@ export const TrainingModal: React.FC<TrainingModalProps> = ({
     }
 
     try {
-      const res = await extrairDadosECriarFormacaoDeCertificado(file, colaboradores, anoAtual);
+      const res = await extrairDadosECriarFormacaoDeCertificado(
+        file,
+        colaboradores,
+        anoAtual,
+        colaboradoresAteMarco2026
+      );
       setCertificado(res.certificado);
 
       // Se for novo registo ou se o título estiver vazio, preencher com os dados extraídos
       if (!formacaoToEdit || !nome.trim()) {
+        const dataCert = res.formacao.data || data;
         setNome(res.formacao.nome);
+        if (res.formacao.data) {
+          setData(res.formacao.data);
+        }
         if (res.formacao.colaboradores.length > 0 && colaboradoresSelecionados.length === 0) {
-          setColaboradoresSelecionados(res.formacao.colaboradores);
+          setColaboradoresSelecionados(
+            normalizarColaboradoresValidos(res.formacao.colaboradores, dataCert)
+          );
         }
         if (res.formacao.destinatarios.length > 0) {
           setDestinatarios(res.formacao.destinatarios);
-        }
-        if (res.formacao.data) {
-          setData(res.formacao.data);
         }
         if (res.formacao.horas > 1) {
           setHoras(res.formacao.horas);
@@ -205,6 +339,10 @@ export const TrainingModal: React.FC<TrainingModalProps> = ({
       return;
     }
 
+    const colaboradoresFinais = frequentadaColaboradorRad
+      ? normalizarColaboradoresValidos(colaboradoresSelecionados, data)
+      : [];
+
     const formacaoFinal: Formacao = {
       id: formacaoToEdit ? formacaoToEdit.id : `form-${Date.now()}`,
       ano: anoAtual,
@@ -215,7 +353,7 @@ export const TrainingModal: React.FC<TrainingModalProps> = ({
       data,
       dataFim: dataFim.trim() || undefined,
       frequentadaColaboradorRad,
-      colaboradores: colaboradoresSelecionados,
+      colaboradores: colaboradoresFinais,
       horas: Number(horas),
       horasTexto: horasTexto.trim() || `${horas} h`,
       codigo: codigo.trim(),
@@ -485,7 +623,10 @@ export const TrainingModal: React.FC<TrainingModalProps> = ({
                     type="radio"
                     name="freqRad"
                     checked={!frequentadaColaboradorRad}
-                    onChange={() => setFrequentadaColaboradorRad(false)}
+                    onChange={() => {
+                      setFrequentadaColaboradorRad(false);
+                      setColaboradoresSelecionados([]);
+                    }}
                     className="text-teal-600 focus:ring-teal-500"
                   />
                   <span>Não</span>
@@ -493,19 +634,46 @@ export const TrainingModal: React.FC<TrainingModalProps> = ({
               </div>
             </div>
 
-            {/* Seleção rápida de Colaboradores por Sigla */}
+            {/* Seleção rápida de Colaboradores por Sigla (Ordem Alfabética) */}
             {frequentadaColaboradorRad && (
               <div>
-                <span className="block text-[11px] text-slate-500 mb-1.5">
-                  Selecione as siglas dos colaboradores presentes (clique para alternar):
-                </span>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="block text-[11px] text-slate-500">
+                      Selecione as siglas dos colaboradores presentes (por ordem alfabética · clique para alternar):
+                    </span>
+                    {anoAtual === 2026 && (
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
+                          usaListaAteMarco
+                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            : 'bg-teal-50 text-teal-800 border-teal-200'
+                        }`}
+                      >
+                        {usaListaAteMarco
+                          ? `Lista até 03/03/2026 (${colaboradoresOrdenadosPorSigla.length} siglas)`
+                          : `Lista após 03/03/2026 (${colaboradoresOrdenadosPorSigla.length} siglas)`}
+                      </span>
+                    )}
+                  </div>
+                  {colaboradoresSelecionados.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setColaboradoresSelecionados([])}
+                      className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 cursor-pointer transition-colors"
+                      title="Retirar todos os colaboradores selecionados"
+                    >
+                      Limpar seleção
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto p-1 bg-white border border-slate-200 rounded">
-                  {colaboradores.map((c) => {
+                  {colaboradoresOrdenadosPorSigla.map((c) => {
                     const isSelected = colaboradoresSelecionados.includes(c.sigla);
                     return (
                       <button
                         type="button"
-                        key={c.sigla}
+                        key={`${usaListaAteMarco ? 'm26' : 'cur'}-${c.sigla}`}
                         onClick={() => handleToggleColaborador(c.sigla)}
                         title={`${c.nome} (${c.categoriaProfissional})`}
                         className={`text-xs px-2 py-0.5 rounded transition-colors cursor-pointer ${

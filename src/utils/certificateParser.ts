@@ -1,5 +1,6 @@
 import { Formacao, Colaborador, CertificadoAnexo, DestinatarioGrupo, FormacaoCategoria } from '../types';
 import { gerarCodigoFormacaoAutomatico } from './codeGenerator';
+import { INITIAL_COLABORADORES_ATE_MARCO_2026, obterColaboradoresPorData } from '../data/collaborators';
 
 export interface ExtracaoCertificadoResultado {
   formacao: Formacao;
@@ -15,7 +16,8 @@ export interface ExtracaoCertificadoResultado {
 export async function extrairDadosECriarFormacaoDeCertificado(
   file: File,
   colaboradores: Colaborador[],
-  anoAtual: number
+  anoAtual: number,
+  colaboradoresAteMarco2026: Colaborador[] = INITIAL_COLABORADORES_ATE_MARCO_2026
 ): Promise<ExtracaoCertificadoResultado> {
   // 1. Converter ficheiro para Base64 de modo a anexar e persistir no registo
   const base64Data = await new Promise<string>((resolve, reject) => {
@@ -51,12 +53,37 @@ export async function extrairDadosECriarFormacaoDeCertificado(
     textoBase = textoBase.replace(p, '');
   }
 
-  // 3. Detetar Colaborador através da sigla ou nome no ficheiro
+  // 3. Detetar Data ou Ano primeiro para escolher a lista correta de colaboradores (até 03-03-2026 vs restante)
+  let dataFinal = '';
+  const matchIso = nomeSemExtensao.match(/(\d{4})[-_](\d{2})[-_](\d{2})/);
+  if (matchIso) {
+    dataFinal = `${matchIso[1]}-${matchIso[2]}-${matchIso[3]}`;
+  } else {
+    const matchPt = nomeSemExtensao.match(/(\d{2})[-_](\d{2})[-_](\d{4})/);
+    if (matchPt) {
+      dataFinal = `${matchPt[3]}-${matchPt[2]}-${matchPt[1]}`;
+    } else {
+      const matchAno = nomeSemExtensao.match(/(202[0-9])/);
+      const anoDetectado = matchAno ? parseInt(matchAno[1], 10) : anoAtual;
+      const hoje = new Date().toISOString().slice(0, 10);
+      dataFinal = hoje.startsWith(anoDetectado.toString()) ? hoje : `${anoDetectado}-03-15`;
+    }
+  }
+
+  const anoDetectadoFinal = parseInt(dataFinal.slice(0, 4), 10) || anoAtual;
+  const listaColaboradoresAplicavel = obterColaboradoresPorData(
+    dataFinal,
+    anoDetectadoFinal,
+    colaboradores,
+    colaboradoresAteMarco2026
+  );
+
+  // 4. Detetar Colaborador através da sigla ou nome no ficheiro
   let colaboradorEncontrado: Colaborador | undefined;
   const textoMinusculo = nomeSemExtensao.toLowerCase();
 
   // Pesquisa por Sigla (como palavra inteira ou delimitada por _ - .)
-  for (const c of colaboradores) {
+  for (const c of listaColaboradoresAplicavel) {
     const siglaRegex = new RegExp(`(^|[\\s_.-])${c.sigla}([\\s_.-]|$)`, 'i');
     if (siglaRegex.test(nomeSemExtensao)) {
       colaboradorEncontrado = c;
@@ -67,7 +94,7 @@ export async function extrairDadosECriarFormacaoDeCertificado(
 
   // Se não encontrou por sigla, tenta pelo nome ou apelido
   if (!colaboradorEncontrado) {
-    for (const c of colaboradores) {
+    for (const c of listaColaboradoresAplicavel) {
       const partesNome = c.nome.toLowerCase().split(' ').filter(p => p.length > 3);
       const primeiro = partesNome[0];
       const ultimo = partesNome[partesNome.length - 1];
@@ -79,7 +106,7 @@ export async function extrairDadosECriarFormacaoDeCertificado(
     }
   }
 
-  // 4. Detetar Horas (ex: 12h, 20_horas, 8hrs)
+  // 5. Detetar Horas (ex: 12h, 20_horas, 8hrs)
   let horasDetectadas = 1;
   const matchHoras = nomeSemExtensao.match(/(?:^|[_\s.-])(\d{1,3})\s*(?:h|horas|hrs|hora)(?:[_\s.-]|$)/i);
   if (matchHoras && matchHoras[1]) {
@@ -87,26 +114,6 @@ export async function extrairDadosECriarFormacaoDeCertificado(
     if (!isNaN(val) && val > 0 && val <= 500) {
       horasDetectadas = val;
       textoBase = textoBase.replace(matchHoras[0], ' ');
-    }
-  }
-
-  // 5. Detetar Data ou Ano
-  let dataFinal = '';
-  // Padrão ISO YYYY-MM-DD
-  const matchIso = nomeSemExtensao.match(/(\d{4})[-_](\d{2})[-_](\d{2})/);
-  if (matchIso) {
-    dataFinal = `${matchIso[1]}-${matchIso[2]}-${matchIso[3]}`;
-  } else {
-    // Padrão DD-MM-YYYY
-    const matchPt = nomeSemExtensao.match(/(\d{2})[-_](\d{2})[-_](\d{4})/);
-    if (matchPt) {
-      dataFinal = `${matchPt[3]}-${matchPt[2]}-${matchPt[1]}`;
-    } else {
-      // Padrão de 4 dígitos (ano)
-      const matchAno = nomeSemExtensao.match(/(202[0-9])/);
-      const anoDetectado = matchAno ? parseInt(matchAno[1], 10) : anoAtual;
-      const hoje = new Date().toISOString().slice(0, 10);
-      dataFinal = hoje.startsWith(anoDetectado.toString()) ? hoje : `${anoDetectado}-03-15`;
     }
   }
 

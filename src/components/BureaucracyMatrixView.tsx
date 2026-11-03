@@ -587,15 +587,18 @@ export const BureaucracyMatrixView: React.FC<BureaucracyMatrixViewProps> = ({
                   Colaboradores Registados nesta Ação:
                 </span>
                 <div className="flex flex-wrap gap-1.5">
-                  {(formacaoEmDetalhe.colaboradores || []).map(sigla => {
-                    const colab = colaboradores.find(c => c.sigla === sigla);
-                    return (
-                      <span key={sigla} className="bg-white px-2 py-0.5 rounded border border-slate-200 font-mono text-[11px] text-slate-800">
-                        <strong>{sigla}</strong> - {colab?.nome || 'Colaborador'}
-                      </span>
-                    );
-                  })}
-                  {(!formacaoEmDetalhe.colaboradores || formacaoEmDetalhe.colaboradores.length === 0) && (
+                  {(formacaoEmDetalhe.frequentadaColaboradorRad ? (formacaoEmDetalhe.colaboradores || []) : [])
+                    .slice()
+                    .sort((a, b) => a.localeCompare(b, 'pt', { sensitivity: 'base', numeric: true }))
+                    .map(sigla => {
+                      const colab = colaboradores.find(c => c.sigla === sigla);
+                      return (
+                        <span key={sigla} className="bg-white px-2 py-0.5 rounded border border-slate-200 font-mono text-[11px] text-slate-800">
+                          <strong>{sigla}</strong> - {colab?.nome || 'Colaborador'}
+                        </span>
+                      );
+                    })}
+                  {(!formacaoEmDetalhe.frequentadaColaboradorRad || !formacaoEmDetalhe.colaboradores || formacaoEmDetalhe.colaboradores.length === 0) && (
                     <span className="text-slate-400 italic">Nenhum colaborador individual associado</span>
                   )}
                 </div>
