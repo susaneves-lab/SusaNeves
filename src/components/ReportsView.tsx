@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   Formacao, 
   Colaborador, 
@@ -28,6 +28,7 @@ import {
   Target
 } from 'lucide-react';
 import { exportRelatorioMensalToExcel, exportRelatorioTrimestralToExcel, exportFormacoesToExcel } from '../utils/exportUtils';
+import { printElementOnDevicePrinter } from '../utils/printUtils';
 import { MonthlyEvolutionBarChart } from './MonthlyEvolutionBarChart';
 import { PerformanceReportPdfModal } from './PerformanceReportPdfModal';
 
@@ -48,6 +49,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const [mesSelecionado, setMesSelecionado] = useState<number>(1); // Janeiro por defeito
   const [trimestreSelecionado, setTrimestreSelecionado] = useState<1 | 2 | 3 | 4>(1); // Q1 por defeito
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const reportPrintRef = useRef<HTMLDivElement>(null);
 
   const nomesMeses = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -330,7 +332,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   };
 
   const handlePrint = () => {
-    window.print();
+    printElementOnDevicePrinter(reportPrintRef.current, {
+      title: tituloRelatorio,
+      orientation: 'portrait'
+    });
   };
 
   const tituloRelatorio = useMemo(() => {
@@ -516,8 +521,9 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       </div>
 
       {/* Visualização do Relatório (Formatado para Ecrã e Impressão) */}
+      <div ref={reportPrintRef}>
       {tipoRelatorio === 'desempenho' ? (
-        <div className="bg-white p-6 sm:p-8 rounded-lg border border-slate-200 shadow-2xs space-y-8 print:border-none print:shadow-none print:p-0">
+        <div className="bg-white p-6 sm:p-8 rounded-lg border border-slate-200 shadow-2xs space-y-10 print:border-none print:shadow-none print:p-0">
           
           {/* Cabeçalho Oficial do Relatório */}
           <div className="border-b-2 border-slate-900 pb-5">
@@ -547,7 +553,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
 
           {/* 1. PAINEL DE INDICADORES CHAVE DE DESEMPENHO (KPIS) */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
               <Award className="w-4 h-4 text-teal-700" />
               <span>1. Indicadores Chave de Desempenho (KPIs do Serviço)</span>
@@ -629,7 +635,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
 
           {/* 2. GRÁFICOS DE BARRAS D3 DE EVOLUÇÃO MENSAL DAS FORMAÇÕES */}
-          <div className="space-y-2 print-break-inside-avoid">
+          <div className="space-y-4 print-break-inside-avoid">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
               <BarChart2 className="w-4 h-4 text-teal-700" />
               <span>2. Evolução Mensal do Volume de Formação (Gráficos Interativos D3.js)</span>
@@ -645,7 +651,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
 
           {/* 3. GRÁFICOS CIRCULARES DE DISTRIBUIÇÃO & CONFORMIDADE (ANÁLISE DE DADOS) */}
-          <div className="space-y-3 print-break-inside-avoid">
+          <div className="space-y-4 print-break-inside-avoid">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
               <PieChartIcon className="w-4 h-4 text-teal-700" />
               <span>3. Gráficos Circulares de Distribuição & Conformidade (Análise de Dados)</span>
@@ -772,7 +778,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
 
           {/* 4. DISTRIBUIÇÃO POR TIPOLOGIA DE AÇÃO FORMATIVA */}
-          <div className="space-y-3 print-break-inside-avoid">
+          <div className="space-y-4 print-break-inside-avoid">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
               <Clock className="w-4 h-4 text-teal-700" />
               <span>4. Distribuição por Tipologia de Ação Formativa</span>
@@ -795,7 +801,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
 
           {/* 5. DESEMPENHO E CUMPRIMENTO POR GRUPO PROFISSIONAL */}
-          <div className="space-y-3 print-break-inside-avoid">
+          <div className="space-y-4 print-break-inside-avoid">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
               <Users className="w-4 h-4 text-teal-700" />
               <span>5. Desempenho e Cumprimento por Grupo Profissional</span>
@@ -905,26 +911,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               <div className="text-right text-xs text-slate-500 font-mono flex flex-col items-end gap-1.5">
                 <p>Data de Emissão: <strong className="text-slate-900">{new Date().toLocaleDateString('pt-PT')}</strong></p>
                 <p>Documento de Conformidade Hospitalar · Exercício <strong className="text-slate-900">{anoAtual}</strong></p>
-                <div className="no-print mt-1 flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={handleExportExcel}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded transition-colors cursor-pointer"
-                    title="Exportar para Excel (.xlsx)"
-                  >
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
-                    <span>Excel</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handlePrint}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded transition-colors cursor-pointer"
-                    title="Imprimir relatório"
-                  >
-                    <Printer className="w-3.5 h-3.5 text-slate-600" />
-                    <span>Imprimir</span>
-                  </button>
-                </div>
               </div>
             </div>
           </div>
@@ -1110,6 +1096,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
         </div>
       )}
+      </div>
 
       {/* Modal de Exportação do Relatório de Desempenho em PDF de Alta Definição */}
       <PerformanceReportPdfModal

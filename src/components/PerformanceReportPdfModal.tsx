@@ -10,6 +10,7 @@ import {
   FormacaoCategoria
 } from '../types';
 import { MonthlyEvolutionBarChart } from './MonthlyEvolutionBarChart';
+import { printElementOnDevicePrinter } from '../utils/printUtils';
 import { 
   Printer, 
   X, 
@@ -310,10 +311,13 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
   };
 
   const handlePrint = () => {
-    window.print();
+    printElementOnDevicePrinter(printAreaRef.current, {
+      title: `ULSAR - Serviço de Radioterapia · Relatório ${anoAtual}`,
+      orientation: 'portrait'
+    });
   };
 
-  // Exportação em PDF Multi-Página de Alta Fidelidade (Sem cortes, incluindo toda a informação)
+  // Exportação em PDF Multi-Página de Alta Fidelidade (Sem cortes e com espaço em branco uniforme)
   const handleDownloadPdf = async () => {
     if (!printAreaRef.current) return;
     setIsGeneratingPdf(true);
@@ -323,6 +327,7 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
       const pdfHeight = 297;
       const margin = 8;
       const contentWidth = pdfWidth - margin * 2; // 194 mm
+      const maxPageHeight = pdfHeight - margin * 2; // 281 mm
 
       // Procurar todos os contentores de página dedicados (.pdf-page-container)
       const pageElements = printAreaRef.current.querySelectorAll<HTMLElement>('.pdf-page-container');
@@ -341,8 +346,15 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
           if (i > 0) {
             pdf.addPage('a4', 'p');
           }
-          const contentHeight = (canvas.height * contentWidth) / canvas.width;
-          pdf.addImage(imgData, 'PNG', margin, margin, contentWidth, Math.min(contentHeight, pdfHeight - margin * 2), undefined, 'FAST');
+          let renderWidth = contentWidth;
+          let renderHeight = (canvas.height * contentWidth) / canvas.width;
+          if (renderHeight > maxPageHeight) {
+            renderHeight = maxPageHeight;
+            renderWidth = (canvas.width * renderHeight) / canvas.height;
+          }
+          const xOffset = margin + (contentWidth - renderWidth) / 2;
+          const yOffset = margin + Math.max(0, (maxPageHeight - renderHeight) / 2);
+          pdf.addImage(imgData, 'PNG', xOffset, yOffset, renderWidth, renderHeight, undefined, 'FAST');
         }
       } else {
         // Fallback contínuo
@@ -555,57 +567,57 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
         >
 
           {/* ========================================================================= */}
-          {/* CASO 1: RELATÓRIO DE DESEMPENHO & GRÁFICOS D3 (3 PÁGINAS COMPLETAS)       */}
+          {/* CASO 1: RELATÓRIO DE DESEMPENHO & GRÁFICOS D3 (2 PÁGINAS A4 EQUILIBRADAS)  */}
           {/* ========================================================================= */}
           {tipoRelatorio === 'desempenho' && (
             <>
-              {/* PÁGINA 1: Síntese Executiva, KPIs e Gráficos de Barras D3 */}
-              <div className="pdf-page-container bg-white p-6 sm:p-8 rounded-lg border border-slate-200 shadow-sm space-y-6 print:border-none print:shadow-none print:p-0">
+              {/* PÁGINA 1: Síntese Executiva, Item 1 (KPIs) e Item 2 (Gráficos de Barras D3) */}
+              <div className="pdf-page-container bg-white p-8 sm:p-10 rounded-lg border border-slate-200 shadow-sm min-h-[1230px] flex flex-col justify-between gap-10 print:border-none print:shadow-none print:p-0 print:min-h-0">
                 
                 {/* Cabeçalho Hospitalar ULSAR */}
-                <div className="border-b-2 border-slate-900 pb-4">
-                  <div className="flex justify-between items-start">
+                <div className="border-b-2 border-slate-900 pb-6">
+                  <div className="flex justify-between items-start gap-4">
                     <div>
                       <div className="flex items-center gap-1.5 text-slate-600 text-[11px] font-bold uppercase tracking-widest">
                         <Building2 className="w-4 h-4 text-teal-700" />
                         <span>Unidade Local de Saúde · ULSAR, EPE</span>
                       </div>
-                      <h1 className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5 tracking-tight">
+                      <h1 className="text-xl sm:text-2xl font-black text-slate-900 mt-1 tracking-tight">
                         Serviço de Radioterapia
                       </h1>
-                      <p className="text-xs sm:text-sm font-semibold text-teal-800">
+                      <p className="text-xs sm:text-sm font-semibold text-teal-800 mt-0.5">
                         Relatório Oficial de Desempenho e Evolução Formativa · Ciclo {anoAtual}
                       </p>
-                      <p className="text-[10px] text-slate-500">
+                      <p className="text-[11px] text-slate-500 mt-0.5">
                         Auditoria Interna de Formação Profissional Contínua & Acreditação da Qualidade
                       </p>
                     </div>
 
-                    <div className="text-right text-[11px] text-slate-500 font-mono bg-slate-50 p-2.5 rounded-lg border border-slate-200 shrink-0">
+                    <div className="text-right text-[11px] text-slate-500 font-mono bg-slate-50 p-3 rounded-lg border border-slate-200 shrink-0 space-y-0.5">
                       <p>Data de Emissão: <strong className="text-slate-900">{new Date().toLocaleDateString('pt-PT')}</strong></p>
                       <p>Exercício: <strong className="text-slate-900 font-bold">{anoAtual}</strong></p>
                       <p>Classificação: <span className="text-teal-800 font-bold">Relatório Executivo</span></p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">RadForm · Sistema Hospitalar</p>
+                      <p className="text-[10px] text-slate-400 pt-0.5">RadForm · Sistema Hospitalar</p>
                     </div>
                   </div>
                 </div>
 
                 {/* 1. Painel de Indicadores Chave de Desempenho (KPIs) */}
-                <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                    <Award className="w-3.5 h-3.5 text-teal-700" />
+                <div className="space-y-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                    <Award className="w-4 h-4 text-teal-700" />
                     <span>1. Indicadores Chave de Desempenho (KPIs do Serviço)</span>
                   </h3>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
                     {/* KPI 1: Horas */}
-                    <div className="p-2.5 bg-teal-50/70 border border-teal-200 rounded-lg">
+                    <div className="p-3.5 bg-teal-50/70 border border-teal-200 rounded-lg space-y-1">
                       <span className="text-[10px] font-semibold text-teal-900 uppercase block">Horas Realizadas</span>
-                      <div className="flex items-baseline gap-1 mt-0.5">
-                        <strong className="text-lg font-bold font-mono text-teal-950">{totalHorasAno}</strong>
-                        <span className="text-[10px] text-teal-800 font-mono">/ {metaHoras}h</span>
+                      <div className="flex items-baseline gap-1">
+                        <strong className="text-xl font-bold font-mono text-teal-950">{totalHorasAno}</strong>
+                        <span className="text-[10.5px] text-teal-800 font-mono">/ {metaHoras}h</span>
                       </div>
-                      <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded mt-1 inline-block ${
+                      <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded inline-block ${
                         percHoras >= 100 ? 'bg-emerald-200 text-emerald-900' : 'bg-teal-200 text-teal-900'
                       }`}>
                         {percHoras}% da Meta
@@ -613,13 +625,13 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
                     </div>
 
                     {/* KPI 2: Ações */}
-                    <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-lg">
+                    <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-lg space-y-1">
                       <span className="text-[10px] font-semibold text-blue-900 uppercase block">Ações Formação</span>
-                      <div className="flex items-baseline gap-1 mt-0.5">
-                        <strong className="text-lg font-bold font-mono text-blue-950">{totalAcoesAno}</strong>
-                        <span className="text-[10px] text-blue-800 font-mono">/ {metaAcoes}</span>
+                      <div className="flex items-baseline gap-1">
+                        <strong className="text-xl font-bold font-mono text-blue-950">{totalAcoesAno}</strong>
+                        <span className="text-[10.5px] text-blue-800 font-mono">/ {metaAcoes}</span>
                       </div>
-                      <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded mt-1 inline-block ${
+                      <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded inline-block ${
                         percAcoes >= 100 ? 'bg-emerald-200 text-emerald-900' : 'bg-blue-200 text-blue-900'
                       }`}>
                         {percAcoes}% da Meta
@@ -627,45 +639,45 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
                     </div>
 
                     {/* KPI 3: Taxa PNF */}
-                    <div className="p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-lg">
+                    <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-lg space-y-1">
                       <span className="text-[10px] font-semibold text-emerald-900 uppercase block">Integração PNF</span>
-                      <div className="mt-0.5">
-                        <strong className="text-lg font-bold font-mono text-emerald-950">{percPnf}%</strong>
+                      <div>
+                        <strong className="text-xl font-bold font-mono text-emerald-950">{percPnf}%</strong>
                       </div>
-                      <span className="text-[10px] text-emerald-800 mt-1 block">
+                      <span className="text-[10px] text-emerald-800 block">
                         {acoesPnfAno} de {totalAcoesAno} no plano
                       </span>
                     </div>
 
                     {/* KPI 4: Burocracia */}
-                    <div className="p-2.5 bg-amber-50/70 border border-amber-200 rounded-lg">
+                    <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-lg space-y-1">
                       <span className="text-[10px] font-semibold text-amber-900 uppercase block">Conformidade Matriz</span>
-                      <div className="mt-0.5">
-                        <strong className="text-lg font-bold font-mono text-amber-950">{percBurocracia}%</strong>
+                      <div>
+                        <strong className="text-xl font-bold font-mono text-amber-950">{percBurocracia}%</strong>
                       </div>
-                      <span className="text-[10px] text-amber-800 mt-1 block">
+                      <span className="text-[10px] text-amber-800 block">
                         {acoesBurocraciaOkAno} de {totalAcoesAno} validadas
                       </span>
                     </div>
 
                     {/* KPI 5: Média Horas */}
-                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
                       <span className="text-[10px] font-semibold text-slate-700 uppercase block">Média / Profissional</span>
-                      <div className="mt-0.5">
-                        <strong className="text-lg font-bold font-mono text-slate-900">{mediaHorasPorColaborador} h</strong>
+                      <div>
+                        <strong className="text-xl font-bold font-mono text-slate-900">{mediaHorasPorColaborador} h</strong>
                       </div>
-                      <span className="text-[10px] text-slate-500 mt-1 block">
+                      <span className="text-[10px] text-slate-500 block">
                         {colaboradores.length} colaboradores
                       </span>
                     </div>
 
                     {/* KPI 6: Participações */}
-                    <div className="p-2.5 bg-indigo-50/70 border border-indigo-200 rounded-lg">
+                    <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-lg space-y-1">
                       <span className="text-[10px] font-semibold text-indigo-900 uppercase block">Participações Totais</span>
-                      <div className="mt-0.5">
-                        <strong className="text-lg font-bold font-mono text-indigo-950">{totalParticipacoes}</strong>
+                      <div>
+                        <strong className="text-xl font-bold font-mono text-indigo-950">{totalParticipacoes}</strong>
                       </div>
-                      <span className="text-[10px] text-indigo-800 mt-1 block">
+                      <span className="text-[10px] text-indigo-800 block">
                         Presenças da equipa
                       </span>
                     </div>
@@ -673,9 +685,9 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
                 </div>
 
                 {/* 2. Gráfico de Barras D3 de Evolução Mensal */}
-                <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                    <BarChart2 className="w-3.5 h-3.5 text-teal-700" />
+                <div className="space-y-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                    <BarChart2 className="w-4 h-4 text-teal-700" />
                     <span>2. Evolução Mensal do Volume de Formação (Gráficos D3.js)</span>
                   </h3>
 
@@ -689,44 +701,44 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
                 </div>
 
                 {/* Rodapé da Página 1 */}
-                <div className="pt-3 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-500 font-mono">
+                <div className="pt-4 border-t border-slate-200 flex justify-between items-center text-[10.5px] text-slate-500 font-mono">
                   <span>ULSAR, EPE · Serviço de Radioterapia · Relatório de Desempenho {anoAtual}</span>
-                  <span className="font-bold text-slate-700">Página 1 de 3</span>
+                  <span className="font-bold text-slate-700">Página 1 de 2</span>
                 </div>
               </div>
 
-              {/* PÁGINA 2: Gráficos Circulares, Tipologia e Grupos Profissionais */}
-              <div className="pdf-page-container bg-white p-6 sm:p-8 rounded-lg border border-slate-200 shadow-sm space-y-6 print:border-none print:shadow-none print:p-0">
+              {/* PÁGINA 2: Item 3 (Gráficos Circulares), Item 4 (Tipologia), Item 5 (Grupos), Item 6 (Auditoria) e Assinaturas */}
+              <div className="pdf-page-container bg-white p-8 sm:p-10 rounded-lg border border-slate-200 shadow-sm min-h-[1230px] flex flex-col justify-between gap-7 print:border-none print:shadow-none print:p-0 print:min-h-0">
                 
                 {/* Cabeçalho de Continuação */}
-                <div className="border-b border-slate-300 pb-2.5 flex justify-between items-center text-xs">
+                <div className="border-b border-slate-300 pb-3.5 flex justify-between items-center text-xs">
                   <div>
                     <span className="font-bold text-slate-800">ULSAR, EPE · Serviço de Radioterapia</span>
                     <span className="text-slate-400 mx-2">|</span>
                     <span className="text-teal-800 font-semibold">Relatório Oficial de Desempenho {anoAtual}</span>
                   </div>
-                  <span className="text-[10px] text-slate-500 font-mono">Continuação · Secções 3, 4 e 5</span>
+                  <span className="text-[10.5px] text-slate-500 font-mono">Continuação · Secções 3, 4, 5 e 6</span>
                 </div>
 
                 {/* 3. Gráficos Circulares de Distribuição & Conformidade */}
-                <div className="space-y-2.5">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                    <PieChartIcon className="w-3.5 h-3.5 text-teal-700" />
+                <div className="space-y-3.5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                    <PieChartIcon className="w-4 h-4 text-teal-700" />
                     <span>3. Gráficos Circulares de Distribuição & Conformidade (Análise de Dados)</span>
                   </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Donut 1: Categorias de Formação */}
-                    <div className="bg-slate-50/80 p-3.5 rounded-lg border border-slate-200 text-center flex flex-col items-center justify-between">
+                    <div className="bg-slate-50/80 p-4 rounded-lg border border-slate-200 text-center flex flex-col items-center justify-between">
                       <div>
                         <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-800">
                           Categorias de Formação
                         </h4>
-                        <p className="text-[9.5px] text-slate-500">Proporção horária por tipo</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">Proporção horária por tipo</p>
                       </div>
 
-                      <div className="py-1">
-                        <svg width="135" height="135" viewBox="0 0 200 200" className="mx-auto">
+                      <div className="py-2">
+                        <svg width="138" height="138" viewBox="0 0 200 200" className="mx-auto">
                           {gerarCaminhosDonut(metricasCategorias.map(m => ({ perc: m.perc, fill: m.cores.fill, label: m.categoria })))}
                           <circle cx="100" cy="100" r="38" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" />
                           <text x="100" y="96" textAnchor="middle" className="text-[14px] font-bold fill-slate-900 font-mono">
@@ -738,10 +750,10 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
                         </svg>
                       </div>
 
-                      <div className="w-full grid grid-cols-2 gap-1 pt-2 border-t border-slate-200/80 text-[10px]">
+                      <div className="w-full grid grid-cols-2 gap-1.5 pt-2.5 border-t border-slate-200/80 text-[10.5px]">
                         {metricasCategorias.map(c => (
-                          <div key={c.categoria} className="flex items-center gap-1 justify-start">
-                            <span className="w-2 h-2 rounded-xs shrink-0" style={{ backgroundColor: c.cores.fill }} />
+                          <div key={c.categoria} className="flex items-center gap-1.5 justify-start">
+                            <span className="w-2.5 h-2.5 rounded-xs shrink-0" style={{ backgroundColor: c.cores.fill }} />
                             <span className="text-slate-700 truncate">
                               <strong>{c.categoria}</strong>: {c.perc}%
                             </span>
@@ -751,16 +763,16 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
                     </div>
 
                     {/* Donut 2: Validação Burocrática */}
-                    <div className="bg-slate-50/80 p-3.5 rounded-lg border border-slate-200 text-center flex flex-col items-center justify-between">
+                    <div className="bg-slate-50/80 p-4 rounded-lg border border-slate-200 text-center flex flex-col items-center justify-between">
                       <div>
                         <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-800">
                           Validação Burocrática
                         </h4>
-                        <p className="text-[9.5px] text-slate-500">Conformidade documental</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">Conformidade documental</p>
                       </div>
 
-                      <div className="py-1">
-                        <svg width="135" height="135" viewBox="0 0 200 200" className="mx-auto">
+                      <div className="py-2">
+                        <svg width="138" height="138" viewBox="0 0 200 200" className="mx-auto">
                           {gerarCaminhosDonut([
                             { perc: percBurocracia, fill: '#0d9488', label: 'Validada' },
                             { perc: Math.max(0, 100 - percBurocracia), fill: '#cbd5e1', label: 'Pendente' }
@@ -775,29 +787,29 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
                         </svg>
                       </div>
 
-                      <div className="w-full flex items-center justify-center gap-3 pt-2 border-t border-slate-200/80 text-[10px]">
-                        <div className="flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-xs bg-teal-600 shrink-0" />
+                      <div className="w-full flex items-center justify-center gap-3.5 pt-2.5 border-t border-slate-200/80 text-[10.5px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-xs bg-teal-600 shrink-0" />
                           <span className="text-slate-700">Validada ({percBurocracia}%)</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-xs bg-slate-300 shrink-0" />
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-xs bg-slate-300 shrink-0" />
                           <span className="text-slate-700">Pendente ({Math.max(0, 100 - percBurocracia)}%)</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Donut 3: Enquadramento PNF */}
-                    <div className="bg-slate-50/80 p-3.5 rounded-lg border border-slate-200 text-center flex flex-col items-center justify-between">
+                    <div className="bg-slate-50/80 p-4 rounded-lg border border-slate-200 text-center flex flex-col items-center justify-between">
                       <div>
                         <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-800">
                           Plano Anual (PNF)
                         </h4>
-                        <p className="text-[9.5px] text-slate-500">Inclusão nas necessidades</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">Inclusão nas necessidades</p>
                       </div>
 
-                      <div className="py-1">
-                        <svg width="135" height="135" viewBox="0 0 200 200" className="mx-auto">
+                      <div className="py-2">
+                        <svg width="138" height="138" viewBox="0 0 200 200" className="mx-auto">
                           {gerarCaminhosDonut([
                             { perc: percPnf, fill: '#10b981', label: 'No Plano' },
                             { perc: Math.max(0, 100 - percPnf), fill: '#cbd5e1', label: 'Fora do Plano' }
@@ -812,13 +824,13 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
                         </svg>
                       </div>
 
-                      <div className="w-full flex items-center justify-center gap-3 pt-2 border-t border-slate-200/80 text-[10px]">
-                        <div className="flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-xs bg-emerald-500 shrink-0" />
+                      <div className="w-full flex items-center justify-center gap-3.5 pt-2.5 border-t border-slate-200/80 text-[10.5px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-xs bg-emerald-500 shrink-0" />
                           <span className="text-slate-700">No PNF ({percPnf}%)</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-xs bg-slate-300 shrink-0" />
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-xs bg-slate-300 shrink-0" />
                           <span className="text-slate-700">Fora ({Math.max(0, 100 - percPnf)}%)</span>
                         </div>
                       </div>
@@ -826,21 +838,21 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
                   </div>
                 </div>
 
-                {/* 4. DISTRIBUIÇÃO POR TIPOLOGIA DE AÇÃO FORMATIVA (COLOCADO ANTES DO DESEMPENHO POR GRUPO) */}
-                <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-teal-700" />
+                {/* 4. DISTRIBUIÇÃO POR TIPOLOGIA DE AÇÃO FORMATIVA */}
+                <div className="space-y-3.5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-teal-700" />
                     <span>4. Distribuição por Tipologia de Ação Formativa</span>
                   </h3>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 text-xs">
                     {desempenhoTipos.map(t => (
-                      <div key={t.tipo} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                      <div key={t.tipo} className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg">
                         <div className="flex justify-between items-center">
                           <strong className="text-slate-900">{t.tipo}</strong>
                           <span className="font-mono text-teal-800 font-bold">{t.percentagemHoras}%</span>
                         </div>
-                        <div className="flex justify-between text-slate-600 text-[10.5px] mt-1 font-mono">
+                        <div className="flex justify-between text-slate-600 text-[11px] mt-1.5 font-mono">
                           <span>{t.acoes} ações</span>
                           <strong className="text-slate-900">{t.horas} h</strong>
                         </div>
@@ -850,9 +862,9 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
                 </div>
 
                 {/* 5. DESEMPENHO E CUMPRIMENTO POR GRUPO PROFISSIONAL */}
-                <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-teal-700" />
+                <div className="space-y-3.5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-teal-700" />
                     <span>5. Desempenho e Cumprimento por Grupo Profissional</span>
                   </h3>
 
@@ -860,34 +872,34 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
                         <tr className="bg-slate-100 border-b border-slate-200 text-slate-800 font-semibold text-[11px]">
-                          <th className="py-2 px-3">Grupo Profissional</th>
-                          <th className="py-2 px-2 text-center w-16">Efetivo</th>
-                          <th className="py-2 px-2 text-center w-24">Ações Destinadas</th>
-                          <th className="py-2 px-3 text-right w-24 font-mono">Horas Reais</th>
-                          <th className="py-2 px-3 text-right w-24 font-mono">Meta Grupo</th>
-                          <th className="py-2 px-3 text-center w-36">Cumprimento %</th>
+                          <th className="py-2.5 px-3">Grupo Profissional</th>
+                          <th className="py-2.5 px-2 text-center w-16">Efetivo</th>
+                          <th className="py-2.5 px-2 text-center w-24">Ações Destinadas</th>
+                          <th className="py-2.5 px-3 text-right w-24 font-mono">Horas Reais</th>
+                          <th className="py-2.5 px-3 text-right w-24 font-mono">Meta Grupo</th>
+                          <th className="py-2.5 px-3 text-center w-36">Cumprimento %</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-[11px]">
                         {desempenhoCategorias.map(c => (
                           <tr key={c.grupo} className="hover:bg-slate-50/50">
-                            <td className="py-1.5 px-3 font-semibold text-slate-900">
+                            <td className="py-2.5 px-3 font-semibold text-slate-900">
                               <span className="font-mono text-teal-800 font-bold mr-1.5">[{c.grupo}]</span>
                               <span>{c.nomeCompleto}</span>
                             </td>
-                            <td className="py-1.5 px-2 text-center font-mono font-medium text-slate-700">
+                            <td className="py-2.5 px-2 text-center font-mono font-medium text-slate-700">
                               {c.totalColabs}
                             </td>
-                            <td className="py-1.5 px-2 text-center font-mono font-medium text-slate-700">
+                            <td className="py-2.5 px-2 text-center font-mono font-medium text-slate-700">
                               {c.totalAcoes}
                             </td>
-                            <td className="py-1.5 px-3 text-right font-mono font-bold text-teal-900">
+                            <td className="py-2.5 px-3 text-right font-mono font-bold text-teal-900">
                               {c.totalHoras} h
                             </td>
-                            <td className="py-1.5 px-3 text-right font-mono text-slate-500">
+                            <td className="py-2.5 px-3 text-right font-mono text-slate-500">
                               {c.metaHoras} h
                             </td>
-                            <td className="py-1.5 px-3 text-center">
+                            <td className="py-2.5 px-3 text-center">
                               <div className="flex items-center gap-1.5 justify-center">
                                 <div className="w-14 bg-slate-100 rounded-full h-1.5 overflow-hidden">
                                   <div 
@@ -911,122 +923,37 @@ export const PerformanceReportPdfModal: React.FC<PerformanceReportPdfModalProps>
                   </div>
                 </div>
 
-                {/* Rodapé da Página 2 */}
-                <div className="pt-3 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-500 font-mono">
-                  <span>ULSAR, EPE · Serviço de Radioterapia · Relatório de Desempenho {anoAtual}</span>
-                  <span className="font-bold text-slate-700">Página 2 de 3</span>
-                </div>
-              </div>
-
-              {/* PÁGINA 3: Quadro de Formações Realizadas, Auditoria e Assinaturas */}
-              <div className="pdf-page-container bg-white p-6 sm:p-8 rounded-lg border border-slate-200 shadow-sm space-y-6 print:border-none print:shadow-none print:p-0">
-                
-                {/* Cabeçalho de Continuação */}
-                <div className="border-b border-slate-300 pb-2.5 flex justify-between items-center text-xs">
-                  <div>
-                    <span className="font-bold text-slate-800">ULSAR, EPE · Serviço de Radioterapia</span>
-                    <span className="text-slate-400 mx-2">|</span>
-                    <span className="text-teal-800 font-semibold">Relatório Oficial de Desempenho {anoAtual}</span>
-                  </div>
-                  <span className="text-[10px] text-slate-500 font-mono">Continuação · Secções 6, 7 e Validação</span>
-                </div>
-
-                {/* 6. Registo Síntese de Formações do Ciclo (Garante Toda a Informação) */}
-                <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Target className="w-3.5 h-3.5 text-teal-700" />
-                      <span>6. Registo Síntese das Formações Realizadas no Ciclo ({formacoesDoAno.length} Ações)</span>
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-mono font-normal">
-                      Total: {totalHorasAno} horas
-                    </span>
-                  </h3>
-
-                  <div className="overflow-x-auto border border-slate-200 rounded-lg">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="bg-slate-100 border-b border-slate-200 text-slate-800 font-semibold text-[10.5px]">
-                          <th className="py-2 px-2.5 w-16">Código</th>
-                          <th className="py-2 px-3">Nome da Formação</th>
-                          <th className="py-2 px-2 w-20">Tipo</th>
-                          <th className="py-2 px-2 w-24">Destinatários</th>
-                          <th className="py-2 px-2.5 w-24">Data</th>
-                          <th className="py-2 px-2 w-16 text-right">Horas</th>
-                          <th className="py-2 px-2 w-14 text-center">PNF</th>
-                          <th className="py-2 px-2.5">Participantes</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-[10.5px]">
-                        {formacoesDoAno.length === 0 ? (
-                          <tr>
-                            <td colSpan={8} className="py-4 text-center text-slate-400">
-                              Não existem formações registadas no ciclo.
-                            </td>
-                          </tr>
-                        ) : (
-                          formacoesDoAno.slice(0, 15).map(f => (
-                            <tr key={f.id} className="hover:bg-slate-50/50">
-                              <td className="py-1.5 px-2.5 font-mono text-slate-600">{f.codigo || '-'}</td>
-                              <td className="py-1.5 px-3 font-medium text-slate-900 truncate max-w-[200px]">{f.nome}</td>
-                              <td className="py-1.5 px-2 text-slate-700">{f.categoria}</td>
-                              <td className="py-1.5 px-2 text-slate-600 truncate max-w-[100px]">{f.destinatarios.join(', ')}</td>
-                              <td className="py-1.5 px-2.5 font-mono text-slate-700 whitespace-nowrap">{f.data}</td>
-                              <td className="py-1.5 px-2 text-right font-mono font-bold text-teal-800">{f.horas}h</td>
-                              <td className="py-1.5 px-2 text-center">
-                                <span className={f.incluidaPlanoNecessidades === 'Sim' ? 'text-teal-700 font-semibold' : 'text-slate-400'}>
-                                  {f.incluidaPlanoNecessidades}
-                                </span>
-                              </td>
-                              <td className="py-1.5 px-2.5 text-slate-600 truncate max-w-[140px]">
-                                {f.colaboradores && f.colaboradores.length > 0 ? f.colaboradores.join(', ') : '-'}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                        {formacoesDoAno.length > 15 && (
-                          <tr className="bg-slate-50 font-mono text-[10px] text-slate-500">
-                            <td colSpan={8} className="py-1.5 px-3 text-center">
-                              ... e mais {formacoesDoAno.length - 15} ações formativas consolidadas no histórico digital RadForm.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* 7. Parecer e Validação da Auditoria da Qualidade */}
-                <div className="p-3.5 bg-teal-50/60 border border-teal-200 rounded-lg text-xs space-y-1">
+                {/* 6. Parecer e Validação da Auditoria da Qualidade */}
+                <div className="p-4 bg-teal-50/60 border border-teal-200 rounded-lg text-xs space-y-1.5">
                   <strong className="text-teal-950 font-bold block flex items-center gap-1.5">
                     <ShieldCheck className="w-4 h-4 text-teal-700" />
-                    7. Conclusões da Auditoria de Desempenho e Conformidade:
+                    6. Conclusões da Auditoria de Desempenho e Conformidade:
                   </strong>
-                  <p className="text-slate-700 leading-relaxed text-[10.5px]">
+                  <p className="text-slate-700 leading-relaxed text-[11px]">
                     O presente relatório comprova que no exercício de <strong>{anoAtual}</strong> foram concluídas <strong>{totalAcoesAno}</strong> ações formativas perfazendo um volume total de <strong>{totalHorasAno} horas</strong>. A análise dos gráficos circulares de distribuição evidencia que a tipologia com maior volume foi <strong>{categoriaMaisRepresentada?.categoria || 'Externa'}</strong> com <strong>{categoriaMaisRepresentada?.horas || 0} horas</strong> ({categoriaMaisRepresentada?.perc || 0}% do total). No âmbito da governação clínica e planeamento, a taxa de integração no Plano de Necessidades Formativas (PNF) fixou-se em <strong>{percPnf}%</strong> ({acoesPnfAno} ações no plano) e a conformidade burocrática dos processos atingiu <strong>{percBurocracia}%</strong> ({acoesBurocraciaOkAno} ações validadas). O documento cumpre os normativos de acreditação hospitalar da ULSAR, EPE e encontra-se devidamente auditado no sistema RadForm.
                   </p>
                 </div>
 
-                {/* 8. Bloco de Assinaturas Oficiais */}
+                {/* Bloco de Assinaturas Oficiais */}
                 <div className="pt-6 border-t border-slate-300">
                   <div className="grid grid-cols-2 gap-10 text-center text-xs text-slate-700">
                     <div>
                       <div className="border-b border-slate-400 w-3/4 mx-auto mb-2" />
                       <p className="font-bold text-slate-900">O/A Responsável pelo Plano de Formação</p>
-                      <p className="text-[10px] text-slate-500">Serviço de Radioterapia · ULSAR</p>
+                      <p className="text-[10.5px] text-slate-500">Serviço de Radioterapia · ULSAR</p>
                     </div>
                     <div>
                       <div className="border-b border-slate-400 w-3/4 mx-auto mb-2" />
                       <p className="font-bold text-slate-900">A Direção do Serviço de Radioterapia</p>
-                      <p className="text-[10px] text-slate-500">ULSAR, EPE</p>
+                      <p className="text-[10.5px] text-slate-500">ULSAR, EPE</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Rodapé da Página 3 */}
-                <div className="pt-3 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-500 font-mono">
+                {/* Rodapé da Página 2 */}
+                <div className="pt-4 border-t border-slate-200 flex justify-between items-center text-[10.5px] text-slate-500 font-mono">
                   <span>ULSAR, EPE · Serviço de Radioterapia · Relatório de Desempenho {anoAtual}</span>
-                  <span className="font-bold text-slate-700">Página 3 de 3 (Final)</span>
+                  <span className="font-bold text-slate-700">Página 2 de 2 (Final)</span>
                 </div>
               </div>
             </>

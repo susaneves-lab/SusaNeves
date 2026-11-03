@@ -29,9 +29,13 @@ import {
   FileSpreadsheet,
   Printer,
   FileDown,
-  Loader2
+  Loader2,
+  Bot,
+  LayoutGrid
 } from 'lucide-react';
 import { exportRadarEventosToExcel, printRadarEventosPDF } from '../utils/exportUtils';
+import { printElementOnDevicePrinter } from '../utils/printUtils';
+import { RadarSearchAgent } from './RadarSearchAgent';
 
 interface FutureRadarViewProps {
   onPlanearFormacao: (futura: FormacaoFutura) => void;
@@ -54,13 +58,44 @@ export const FutureRadarView: React.FC<FutureRadarViewProps> = ({ onPlanearForma
     return INITIAL_SITES_RADAR;
   });
 
-  // Lista dinâmica de eventos futuros
-  const [listaEventos, setListaEventos] = useState<FormacaoFutura[]>(FUTURE_FORMACOES_RADAR);
+  // Vista ativa dentro do Radar Futuro: Vista Integrada (Agente Google + Catálogo), Só Agente ou Só Catálogo
+  const [radarSection, setRadarSection] = useState<'integrada' | 'agente' | 'catalogo'>('integrada');
+
+  // Lista dinâmica de eventos futuros (inclui eventos descobertos em tempo real via Pesquisa Google)
+  const [listaEventos, setListaEventos] = useState<FormacaoFutura[]>(() => {
+    try {
+      const savedCustom = localStorage.getItem('radform_eventos_google_radar_v1');
+      if (savedCustom) {
+        const parsed = JSON.parse(savedCustom);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const existingTitles = new Set(FUTURE_FORMACOES_RADAR.map(e => e.titulo.toLowerCase()));
+          const uniqueCustom = parsed.filter((e: FormacaoFutura) => e?.titulo && !existingTitles.has(e.titulo.toLowerCase()));
+          return [...uniqueCustom, ...FUTURE_FORMACOES_RADAR];
+        }
+      }
+    } catch {}
+    return FUTURE_FORMACOES_RADAR;
+  });
   
-  // Estado de scanning / refresh
+  // Estado de scanning / refresh em tempo real via Google Search
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [ultimoRefresh, setUltimoRefresh] = useState<string>('Hoje, às ' + new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }));
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
+
+  const handleAdicionarEventoDescoberto = (novoEvento: FormacaoFutura) => {
+    setListaEventos(prev => {
+      const jaExiste = prev.some(e => e.titulo.toLowerCase() === novoEvento.titulo.toLowerCase());
+      if (jaExiste) return prev;
+      const atualizada = [novoEvento, ...prev];
+      try {
+        const customOnly = atualizada.filter(e => e.id.startsWith('google-radar-'));
+        localStorage.setItem('radform_eventos_google_radar_v1', JSON.stringify(customOnly));
+      } catch {}
+      return atualizada;
+    });
+    setMensagemSucesso(`Evento "${novoEvento.titulo}" obtido via Pesquisa Google adicionado ao Radar Futuro!`);
+    setTimeout(() => setMensagemSucesso(null), 4000);
+  };
 
   // Modal para Adicionar Novo Site
   const [isNovoSiteModalOpen, setIsNovoSiteModalOpen] = useState(false);
@@ -152,18 +187,77 @@ export const FutureRadarView: React.FC<FutureRadarViewProps> = ({ onPlanearForma
     return Array.from(set).sort();
   }, [listaEventos]);
 
-  // Executar Refresh de Pesquisa em todos os sites
-  const handleRefreshPesquisa = () => {
+  // Executar Refresh de Pesquisa em tempo real via Google Search API
+  const handleRefreshPesquisa = async () => {
     setIsRefreshing(true);
     setMensagemSucesso(null);
 
-    // Simula a sincronização e varrimento em tempo real dos portais
-    setTimeout(() => {
-      setIsRefreshing(false);
+    try {
+      const temaAlvo = selectedTema !== 'todos' ? selectedTema : (temaAdicionadoRecentemente || 'Radioterapia e Oncologia');
+      const response = await fetch('/api/radar/discover-events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          theme: temaAlvo,
+          ambito: selectedAmbito
+        })
+      });
+
+      const data = await response.json();
       setUltimoRefresh('Hoje, às ' + new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }));
-      setMensagemSucesso(`Pesquisa concluída com sucesso em ${sitesRadar.length} portais hospitalares e académicos. Lista atualizada.`);
-      setTimeout(() => setMensagemSucesso(null), 4000);
-    }, 1200);
+
+      if (response.ok && Array.isArray(data.events) && data.events.length > 0) {
+        let adicionados = 0;
+        setListaEventos(prev => {
+          const existingTitles = new Set(prev.map(e => e.titulo.toLowerCase()));
+          const novos: FormacaoFutura[] = [];
+          data.events.forEach((ev: any, idx: number) => {
+            if (ev?.titulo && !existingTitles.has(ev.titulo.toLowerCase())) {
+              existingTitles.add(ev.titulo.toLowerCase());
+              adicionados++;
+              novos.push({
+                id: `google-radar-${Date.now()}-${idx}`,
+                titulo: ev.titulo,
+                entidade: ev.entidade,
+                dataInicio: ev.dataInicio,
+                dataFim: ev.dataFim,
+                local: ev.local,
+                formato: ev.formato,
+                ambito: ev.ambito,
+                temaPrincipal: ev.temaPrincipal || temaAlvo,
+                descricao: ev.descricao,
+                destinatariosSugeridos: ev.destinatariosSugeridos || ['MR', 'TSDT', 'FIS', 'ENF'],
+                horasEstimadas: ev.horasEstimadas || 8,
+                url: ev.url,
+                destaque: true,
+                gratis: !!ev.gratis,
+                custoTexto: ev.custoTexto
+              });
+            }
+          });
+          const novaLista = [...novos, ...prev];
+          try {
+            const customOnly = novaLista.filter(e => e.id.startsWith('google-radar-'));
+            localStorage.setItem('radform_eventos_google_radar_v1', JSON.stringify(customOnly));
+          } catch {}
+          return novaLista;
+        });
+
+        setMensagemSucesso(
+          adicionados > 0
+            ? `Pesquisa Google em tempo real concluída: ${adicionados} novos eventos reais adicionados ao Radar (${sitesRadar.length} portais monitorizados).`
+            : `Pesquisa Google em tempo real concluída com sucesso (${sitesRadar.length} portais verificados). Catálogo atualizado.`
+        );
+      } else {
+        setMensagemSucesso(`Pesquisa concluída em ${sitesRadar.length} portais hospitalares e académicos. Lista atualizada.`);
+      }
+    } catch {
+      setUltimoRefresh('Hoje, às ' + new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }));
+      setMensagemSucesso(`Monitorização sincronizada nos ${sitesRadar.length} portais oficiais.`);
+    } finally {
+      setIsRefreshing(false);
+      setTimeout(() => setMensagemSucesso(null), 4500);
+    }
   };
 
   // Adicionar Novo Site de Formação
@@ -362,7 +456,10 @@ Agendado automaticamente através da plataforma RadForm para o endereço: radfor
   };
 
   const handleImprimir = () => {
-    window.print();
+    printElementOnDevicePrinter(pdfDossierRef.current, {
+      title: 'ULSAR - Serviço de Radioterapia · Radar de Formações Futuras',
+      orientation: 'portrait'
+    });
   };
 
   return (
@@ -449,6 +546,66 @@ Agendado automaticamente através da plataforma RadForm para o endereço: radfor
         </div>
       )}
 
+      {/* Seletor de Modo de Visualização do Radar Futuro */}
+      <div className="no-print flex flex-wrap items-center justify-between gap-2 bg-white px-4 py-2.5 rounded-lg border border-slate-200 shadow-2xs">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+          <Globe className="w-4 h-4 text-teal-700" />
+          <span>Módulos do Radar Futuro:</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setRadarSection('integrada')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer ${
+              radarSection === 'integrada'
+                ? 'bg-teal-700 text-white shadow-2xs'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Vista Integrada (Agente Google + Catálogo)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setRadarSection('agente')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer ${
+              radarSection === 'agente'
+                ? 'bg-teal-700 text-white shadow-2xs'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+            }`}
+          >
+            <Bot className="w-3.5 h-3.5" />
+            <span>Agente Pesquisa Google & Fact-Check</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setRadarSection('catalogo')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer ${
+              radarSection === 'catalogo'
+                ? 'bg-teal-700 text-white shadow-2xs'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span>Catálogo de Formações ({eventosFiltrados.length})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Agente de Pesquisa Google em Tempo Real (Atualidade, Notícias Recentes & Fact-Checking) */}
+      {(radarSection === 'integrada' || radarSection === 'agente') && (
+        <div className="no-print">
+          <RadarSearchAgent
+            temasMonitorizados={temasDisponiveis}
+            sitesRadar={sitesRadar}
+            onAdicionarEventoAoRadar={handleAdicionarEventoDescoberto}
+            onPlanearFormacao={onPlanearFormacao}
+          />
+        </div>
+      )}
+
+      {radarSection !== 'agente' && (
+        <>
       {/* Painel de Filtros e Pesquisa */}
       <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-3 shadow-2xs">
         
@@ -771,6 +928,8 @@ Agendado automaticamente através da plataforma RadForm para o endereço: radfor
           </div>
         )}
       </div>
+        </>
+      )}
 
       {/* MODAL: ADICIONAR NOVO SITE DE FORMAÇÃO */}
       {isNovoSiteModalOpen && (

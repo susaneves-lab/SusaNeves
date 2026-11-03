@@ -38,7 +38,7 @@ import {
   Printer
 } from 'lucide-react';
 import { exportFormacoesToExcel } from '../utils/exportUtils';
-import html2canvas from 'html2canvas-pro';
+import { printElementOnDevicePrinter } from '../utils/printUtils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -133,39 +133,46 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
       const totalConforme = filteredFormacoes.filter(f => verificarBurocraciaCompleta(f, configuracoes)).length;
       const percConforme = totalAcoes > 0 ? Math.round((totalConforme / totalAcoes) * 100) : 0;
 
-      // ─── CABEÇALHO HOSPITALAR OFICIAL (PÁGINA 1) ───
+      // ─── CABEÇALHO HOSPITALAR OFICIAL (PÁGINA 1 - LETRAS AUMENTADAS) ───
       // Barra superior institucional em tom teal
       pdf.setDrawColor(15, 118, 110);
-      pdf.setLineWidth(1.2);
+      pdf.setLineWidth(1.4);
       pdf.line(8, 7, 289, 7);
 
-      // Canto superior esquerdo: apenas "ULSAR - Serviço de Radioterapia"
-      pdf.setFontSize(14);
+      // Canto superior esquerdo: Título Institucional com letra maior e bem legível
+      pdf.setFontSize(20);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(19, 78, 74);
-      pdf.text('ULSAR - Serviço de Radioterapia', 8, 18);
+      pdf.text('ULSAR - Serviço de Radioterapia', 8, 17.5);
 
-      // Bloco de Emissão à Direita
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(15, 118, 110);
+      pdf.text(`Registo Oficial de Formações · Exercício ${ano}`, 8, 25);
+
+      // Bloco de Emissão à Direita com letra maior
       pdf.setFillColor(248, 250, 252);
       pdf.setDrawColor(226, 232, 240);
-      pdf.roundedRect(205, 9, 84, 18.5, 1.5, 1.5, 'FD');
+      pdf.roundedRect(184, 9.5, 105, 22, 1.5, 1.5, 'FD');
 
       const emissaoData = new Date().toLocaleDateString('pt-PT');
       const emissaoHora = new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-      pdf.setFontSize(7);
+      pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(100, 116, 139);
-      pdf.text(`Emissão: ${emissaoData} às ${emissaoHora}`, 208, 14);
+      pdf.setTextColor(71, 85, 105);
+      pdf.text(`Emissão: ${emissaoData} às ${emissaoHora}`, 188, 15.5);
 
+      pdf.setFontSize(10.5);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(15, 118, 110);
-      pdf.text(`${totalAcoes} Formações · ${totalHoras} Horas Acumuladas`, 208, 19);
+      pdf.text(`${totalAcoes} Formações · ${totalHoras} Horas Acumuladas`, 188, 22);
 
+      pdf.setFontSize(9.5);
       pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(100, 116, 139);
-      pdf.text(`Realizadas: ${totalRealiz} · Burocracia Conforme: ${totalConforme}`, 208, 24);
+      pdf.setTextColor(71, 85, 105);
+      pdf.text(`Realizadas: ${totalRealiz} · Burocracia Conforme: ${totalConforme}`, 188, 28);
 
-      // ─── 4 CAIXAS DE RESUMO DE MÉTRICAS (LARGURA TOTAL = 281mm) ───
+      // ─── 4 CAIXAS DE RESUMO DE MÉTRICAS (LARGURA TOTAL = 281mm, LETRAS AUMENTADAS) ───
       const kpiW = (281 - 6) / 4; // ~68.75mm cada
       const kpis = [
         { label: 'FORMAÇÕES LISTADAS', val: `${totalAcoes}`, bg: [248, 250, 252], text: [30, 41, 59] },
@@ -178,17 +185,17 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
         const kpiX = 8 + i * (kpiW + 2);
         pdf.setFillColor(kpi.bg[0], kpi.bg[1], kpi.bg[2]);
         pdf.setDrawColor(226, 232, 240);
-        pdf.roundedRect(kpiX, 29.5, kpiW, 9.5, 1, 1, 'FD');
+        pdf.roundedRect(kpiX, 34.5, kpiW, 14.5, 1.2, 1.2, 'FD');
 
-        pdf.setFontSize(6);
+        pdf.setFontSize(9.5);
         pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(100, 116, 139);
-        pdf.text(kpi.label, kpiX + 3, 33);
+        pdf.setTextColor(71, 85, 105);
+        pdf.text(kpi.label, kpiX + 3.5, 40.2);
 
-        pdf.setFontSize(8);
+        pdf.setFontSize(13);
         pdf.setFont('helvetica', 'bold');
         pdf.setTextColor(kpi.text[0], kpi.text[1], kpi.text[2]);
-        pdf.text(kpi.val, kpiX + 3, 37.2);
+        pdf.text(kpi.val, kpiX + 3.5, 46.5);
       });
 
       // ─── DADOS DAS FORMAÇÕES NAS 8 COLUNAS SELECIONADAS (SEM AS 4 COLUNAS APÓS HORAS) ───
@@ -221,9 +228,9 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
 
       // ─── TABELA VETORIAL AUTOTABLE (NUNCA CORTA NA DIREITA NEM ENTRE FOLHAS) ───
       autoTable(pdf, {
-        startY: 42,
+        startY: 52.5,
         tableWidth: 281,
-        margin: { left: 8, right: 8, top: 14, bottom: 12 },
+        margin: { left: 8, right: 8, top: 18, bottom: 13 },
         head: [[
           'Realiz.',
           'Nome da Formação',
@@ -240,10 +247,10 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
           fillColor: [15, 118, 110], // Teal 700 (#0f766e)
           textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 10.5,
+          fontSize: 12.5,
           halign: 'center',
           valign: 'middle',
-          cellPadding: 3.5,
+          cellPadding: 4,
           lineColor: [148, 163, 184],
           lineWidth: 0.15
         },
@@ -261,8 +268,8 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
           fillColor: [248, 250, 252] // Slate 50
         },
         columnStyles: {
-          0: { cellWidth: 15, halign: 'center' },
-          1: { cellWidth: 76, halign: 'left', fontStyle: 'bold' },
+          0: { cellWidth: 16, halign: 'center' },
+          1: { cellWidth: 75, halign: 'left', fontStyle: 'bold' },
           2: { cellWidth: 28, halign: 'center' },
           3: { cellWidth: 32, halign: 'center' },
           4: { cellWidth: 28, halign: 'center' },
@@ -290,15 +297,15 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
         pageBreak: 'auto',
         showHead: 'everyPage',
         didDrawPage: (data) => {
-          // Cabeçalho institucional discreto de continuação nas folhas seguintes (página 2 em diante)
+          // Cabeçalho institucional de continuação nas folhas seguintes (página 2 em diante)
           if (data.pageNumber > 1) {
-            pdf.setFontSize(8);
+            pdf.setFontSize(11.5);
             pdf.setFont('helvetica', 'bold');
             pdf.setTextColor(19, 78, 74);
-            pdf.text('ULSAR - Serviço de Radioterapia · Continuação', 8, 8.5);
+            pdf.text(`ULSAR - Serviço de Radioterapia · Registo de Formações ${ano} (Continuação)`, 8, 11);
             pdf.setDrawColor(15, 118, 110);
-            pdf.setLineWidth(0.4);
-            pdf.line(8, 10.5, 289, 10.5);
+            pdf.setLineWidth(0.5);
+            pdf.line(8, 13.5, 289, 13.5);
           }
         }
       });
@@ -307,9 +314,9 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
       const totalPages = pdf.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) {
         pdf.setPage(i);
-        pdf.setFontSize(7);
+        pdf.setFontSize(9);
         pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(148, 163, 184);
+        pdf.setTextColor(100, 116, 139);
         pdf.text(
           `Página ${i} de ${totalPages}`,
           289,
@@ -332,7 +339,10 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
   };
 
   const handlePrintTable = () => {
-    window.print();
+    printElementOnDevicePrinter(pdfTableRef.current, {
+      title: `ULSAR - Serviço de Radioterapia · Registo de Formações ${anoAtual}`,
+      orientation: 'landscape'
+    });
   };
 
   const hasActiveFilters = Boolean(
@@ -1054,38 +1064,40 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
           style={{ width: '100%', maxWidth: '100%', backgroundColor: '#ffffff' }}
         >
           {/* Cabeçalho Hospitalar Oficial (ULSAR, EPE · Serviço de Radioterapia) */}
-          <div className="border-b-2 border-teal-700 pb-3 print-break-inside-avoid" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+          <div className="border-b-2 border-teal-700 pb-3.5 print-break-inside-avoid" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h1 className="text-xl font-black text-teal-900 leading-tight">
+                <h1 className="text-2xl font-black text-teal-900 leading-tight">
                   ULSAR - Serviço de Radioterapia
                 </h1>
+                <p className="text-base font-bold text-teal-700 mt-1">
+                  Registo Oficial de Formações · Exercício {anoAtual}
+                </p>
               </div>
-              <div className="text-right text-[11px] text-slate-600 font-mono space-y-0.5 bg-slate-50 p-2 rounded-lg border border-slate-200 shrink-0">
-                <p><span className="text-slate-400 font-sans">Emissão:</span> <strong>{new Date().toLocaleDateString('pt-PT')}</strong></p>
-                <p><span className="text-slate-400 font-sans">Hora:</span> <strong>{new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</strong></p>
-                <p className="text-teal-700 font-bold font-sans mt-0.5">{filteredFormacoes.length} Formações Registadas</p>
-                <p className="text-slate-500 font-sans text-[10px]">{totalHorasFiltradas} Horas Acumuladas</p>
+              <div className="text-right text-sm text-slate-600 font-mono space-y-0.5 bg-slate-50 p-3 rounded-lg border border-slate-200 shrink-0">
+                <p><span className="text-slate-500 font-sans">Emissão:</span> <strong>{new Date().toLocaleDateString('pt-PT')}</strong> às <strong>{new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</strong></p>
+                <p className="text-teal-700 font-bold font-sans text-sm mt-0.5">{filteredFormacoes.length} Formações · {totalHorasFiltradas} Horas Acumuladas</p>
+                <p className="text-slate-600 font-sans text-xs">Realizadas: {totalRealizadas} · Burocracia Conforme: {filteredFormacoes.filter(f => verificarBurocraciaCompleta(f, configuracoes)).length}</p>
               </div>
             </div>
 
             {/* Painel Resumo de Métricas para o PDF / Impressão */}
-            <div className="grid grid-cols-4 gap-2 mt-2.5 pt-2 border-t border-slate-100 text-center">
-              <div className="bg-slate-50 p-1.5 rounded border border-slate-200">
-                <span className="text-[9px] text-slate-500 uppercase font-bold block">Formações Listadas</span>
-                <span className="text-sm font-bold text-slate-900 font-mono">{filteredFormacoes.length}</span>
+            <div className="grid grid-cols-4 gap-2.5 mt-3 pt-2.5 border-t border-slate-100 text-center">
+              <div className="bg-slate-50 p-2.5 rounded border border-slate-200">
+                <span className="text-xs text-slate-600 uppercase font-bold block">Formações Listadas</span>
+                <span className="text-lg font-bold text-slate-900 font-mono">{filteredFormacoes.length}</span>
               </div>
-              <div className="bg-teal-50 p-1.5 rounded border border-teal-200">
-                <span className="text-[9px] text-teal-700 uppercase font-bold block">Volume Total Horas</span>
-                <span className="text-sm font-bold text-teal-800 font-mono">{totalHorasFiltradas}h</span>
+              <div className="bg-teal-50 p-2.5 rounded border border-teal-200">
+                <span className="text-xs text-teal-700 uppercase font-bold block">Volume Total Horas</span>
+                <span className="text-lg font-bold text-teal-800 font-mono">{totalHorasFiltradas}h</span>
               </div>
-              <div className="bg-emerald-50 p-1.5 rounded border border-emerald-200">
-                <span className="text-[9px] text-emerald-700 uppercase font-bold block">Formações Realizadas</span>
-                <span className="text-sm font-bold text-emerald-800 font-mono">{totalRealizadas} / {filteredFormacoes.length}</span>
+              <div className="bg-emerald-50 p-2.5 rounded border border-emerald-200">
+                <span className="text-xs text-emerald-700 uppercase font-bold block">Formações Realizadas</span>
+                <span className="text-lg font-bold text-emerald-800 font-mono">{totalRealizadas} / {filteredFormacoes.length}</span>
               </div>
-              <div className="bg-blue-50 p-1.5 rounded border border-blue-200">
-                <span className="text-[9px] text-blue-700 uppercase font-bold block">Burocracia Conforme</span>
-                <span className="text-sm font-bold text-blue-800 font-mono">
+              <div className="bg-blue-50 p-2.5 rounded border border-blue-200">
+                <span className="text-xs text-blue-700 uppercase font-bold block">Burocracia Conforme</span>
+                <span className="text-lg font-bold text-blue-800 font-mono">
                   {filteredFormacoes.filter(f => verificarBurocraciaCompleta(f, configuracoes)).length} ({filteredFormacoes.length > 0 ? Math.round((filteredFormacoes.filter(f => verificarBurocraciaCompleta(f, configuracoes)).length / filteredFormacoes.length) * 100) : 0}%)
                 </span>
               </div>
@@ -1106,15 +1118,15 @@ export const TrainingTable: React.FC<TrainingTableProps> = ({
                 <col style={{ width: '24%' }} />
               </colgroup>
               <thead style={{ display: 'table-header-group' }} className="print-break-inside-avoid">
-                <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 leading-tight text-[13px]">
-                  <th className="py-2.5 px-1 text-center border-r border-slate-300 break-words" style={{ wordBreak: 'break-word' }}>Realiz.</th>
-                  <th className="py-2.5 px-2 text-left border-r border-slate-300 break-words" style={{ wordBreak: 'break-word' }}>Nome da Formação</th>
-                  <th className="py-2.5 px-1 text-center border-r border-slate-300 break-words" style={{ wordBreak: 'break-word' }}>Tipo / Cat.</th>
-                  <th className="py-2.5 px-1 text-center border-r border-slate-300 break-words" style={{ wordBreak: 'break-word' }}>Destinatários</th>
-                  <th className="py-2.5 px-1 text-center border-r border-slate-300 break-words" style={{ wordBreak: 'break-word' }}>Data Realiz.</th>
-                  <th className="py-2.5 px-0.5 text-center border-r border-slate-300 break-words" style={{ wordBreak: 'break-word' }}>Freq.</th>
-                  <th className="py-2.5 px-0.5 text-center border-r border-slate-300 break-words" style={{ wordBreak: 'break-word' }}>Horas</th>
-                  <th className="py-2.5 px-2 text-left break-words" style={{ wordBreak: 'break-word' }}>Observações & Colab.</th>
+                <tr className="bg-teal-700 text-white font-bold border-b border-slate-300 leading-tight text-[15px]">
+                  <th className="py-3 px-1 text-center border-r border-teal-600 break-words" style={{ wordBreak: 'break-word' }}>Realiz.</th>
+                  <th className="py-3 px-2 text-left border-r border-teal-600 break-words" style={{ wordBreak: 'break-word' }}>Nome da Formação</th>
+                  <th className="py-3 px-1 text-center border-r border-teal-600 break-words" style={{ wordBreak: 'break-word' }}>Tipo / Cat.</th>
+                  <th className="py-3 px-1 text-center border-r border-teal-600 break-words" style={{ wordBreak: 'break-word' }}>Destinatários</th>
+                  <th className="py-3 px-1 text-center border-r border-teal-600 break-words" style={{ wordBreak: 'break-word' }}>Data Realiz.</th>
+                  <th className="py-3 px-0.5 text-center border-r border-teal-600 break-words" style={{ wordBreak: 'break-word' }}>Freq.</th>
+                  <th className="py-3 px-0.5 text-center border-r border-teal-600 break-words" style={{ wordBreak: 'break-word' }}>Horas</th>
+                  <th className="py-3 px-2 text-left break-words" style={{ wordBreak: 'break-word' }}>Observações & Colab.</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">

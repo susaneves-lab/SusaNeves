@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   TarefaQualidade, 
   Colaborador, 
@@ -45,6 +45,7 @@ import {
   Send,
   Copy
 } from 'lucide-react';
+import { printElementOnDevicePrinter } from '../utils/printUtils';
 
 interface QualityTasksViewProps {
   anoAtual: number;
@@ -63,6 +64,7 @@ export const QualityTasksView: React.FC<QualityTasksViewProps> = ({
 }) => {
   // Sub-abas principais: 1. Checklist de Tarefas | 2. Cronograma Mensal/Trimestral | 3. Critérios de Relevância
   const [viewMode, setViewMode] = useState<'checklist' | 'cronograma' | 'criterios'>('checklist');
+  const tarefasPrintRef = useRef<HTMLDivElement>(null);
 
   // Filtros
   const [filtroPeriodo, setFiltroPeriodo] = useState<PeriodicidadeTarefa | 'todas'>('todas');
@@ -271,7 +273,7 @@ Unidade Local de Saúde (ULSAR, EPE)`;
   };
 
   return (
-    <div className="space-y-6">
+    <div ref={tarefasPrintRef} className="space-y-6">
       
       {/* ─── BANNER SUPERIOR DE QUALIDADE & PROGRESSO ─── */}
       <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-2xs">
@@ -307,8 +309,14 @@ Unidade Local de Saúde (ULSAR, EPE)`;
               <span className="hidden sm:inline">Repor Padrão</span>
             </button>
             <button
-              onClick={() => window.print()}
-              className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md cursor-pointer transition-colors flex items-center gap-1.5 shadow-2xs"
+              type="button"
+              onClick={() =>
+                printElementOnDevicePrinter(tarefasPrintRef.current, {
+                  title: `ULSAR - Serviço de Radioterapia · Tarefas da Qualidade ${anoAtual}`,
+                  orientation: 'portrait'
+                })
+              }
+              className="no-print px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md cursor-pointer transition-colors flex items-center gap-1.5 shadow-2xs"
             >
               <Printer className="w-3.5 h-3.5 text-slate-600" />
               <span>Imprimir</span>

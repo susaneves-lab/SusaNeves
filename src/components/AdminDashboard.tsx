@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   Formacao, 
   Colaborador, 
@@ -34,8 +34,11 @@ import {
   Paperclip,
   AlertCircle,
   Briefcase,
-  Printer
+  Printer,
+  FileDown
 } from 'lucide-react';
+import { exportColaboradorPerfilToPdf } from '../utils/exportUtils';
+import { printElementOnDevicePrinter } from '../utils/printUtils';
 
 interface AdminDashboardProps {
   formacoes: Formacao[];
@@ -56,6 +59,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   // Aba ativa na Dashboard: 'geral' (Visão Geral & Indicadores) ou 'individual' (Perfil Individual)
   const [abaDashboard, setAbaDashboard] = useState<'geral' | 'individual'>('geral');
+  const perfilIndividualRef = useRef<HTMLDivElement>(null);
 
   // Estado para a aba de Perfil Individual
   const [colaboradorSelecionadoId, setColaboradorSelecionadoId] = useState<string>(
@@ -1035,7 +1039,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   {/* SEPARADOR 2: ABA DE PERFIL INDIVIDUAL DO COLABORADOR           */}
   {/* ============================================================== */}
   {abaDashboard === 'individual' && (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div ref={perfilIndividualRef} className="space-y-6 animate-in fade-in duration-200">
       
       {/* Cabeçalho de Impressão Oficial do Perfil Individual */}
       <div className="hidden print:block mb-4 border-b-2 border-teal-700 pb-2">
@@ -1064,12 +1068,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </p>
           </div>
 
-          {/* Controles de Navegação Anterior / Seguinte + Botão de Impressão */}
+          {/* Controles de Navegação Anterior / Seguinte + Botões de Exportação PDF e Impressão */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Botão de Impressão do Perfil Individual (Requisito 2) */}
+            {/* Botão de Exportar Perfil PDF */}
             <button
               type="button"
-              onClick={() => window.print()}
+              onClick={() => {
+                if (colaboradorSelecionado) {
+                  exportColaboradorPerfilToPdf(
+                    colaboradorSelecionado,
+                    formacoesDoColaborador,
+                    metricasPerfilIndividual,
+                    anoAtual
+                  );
+                }
+              }}
+              disabled={!colaboradorSelecionado}
+              className="px-3 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-md inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
+              title={`Exportar Perfil Individual de ${colaboradorSelecionado?.nome || 'Colaborador'} em PDF`}
+            >
+              <FileDown className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Exportar Perfil PDF</span>
+            </button>
+
+            {/* Botão de Impressão do Perfil Individual associado à impressora do dispositivo */}
+            <button
+              type="button"
+              onClick={() =>
+                printElementOnDevicePrinter(perfilIndividualRef.current, {
+                  title: `Perfil Formativo Individual - ${colaboradorSelecionado?.nome || 'Colaborador'} (${anoAtual})`,
+                  orientation: 'portrait'
+                })
+              }
               className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
               title={`Imprimir Perfil Individual de ${colaboradorSelecionado?.nome || 'Colaborador'}`}
             >
@@ -1222,15 +1252,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {colaboradorSelecionado.dataAdmissao && (
                   <span className="text-[11px] text-slate-400">Admissão: {colaboradorSelecionado.dataAdmissao}</span>
                 )}
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="no-print mt-1 px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-md inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                  title={`Imprimir Perfil de ${colaboradorSelecionado.nome}`}
-                >
-                  <Printer className="w-3.5 h-3.5 text-slate-600" />
-                  <span>Imprimir</span>
-                </button>
               </div>
             </div>
           </div>
